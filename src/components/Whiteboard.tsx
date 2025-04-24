@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   TransformWrapper,
   TransformComponent,
@@ -11,6 +11,7 @@ import { useDragStore } from "@/stores/dragStore";
 import DraggablePoolCanvas from './DraggablePoolCanvas'; // We will create this next
 import { useDroppable } from '@dnd-kit/core';
 import MiniMap from './MiniMap';
+import { useWhiteboardStore } from "@/stores/whiteboardStore";
 
 const Controls = () => {
   const { zoomIn, zoomOut, resetTransform } = useControls();
@@ -35,6 +36,8 @@ const Whiteboard = () => {
     updateScale: state.updateScale,
     isPoolDragging: state.isPoolDragging,
   }));
+  const setInstanceRef = useWhiteboardStore((state) => state.setInstanceRef);
+  const transformWrapperRef = useRef<ReactZoomPanPinchRef | null>(null);
   const [transformState, setTransformState] = useState<StateType | null>(null);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -45,6 +48,13 @@ const Whiteboard = () => {
   const whiteboardContentWidth = 20000;
   const whiteboardContentHeight = 20000;
   const miniMapSize = 150;
+
+  useEffect(() => {
+    if (transformWrapperRef.current) {
+      setInstanceRef(transformWrapperRef.current);
+    }
+    return () => setInstanceRef(null);
+  }, [setInstanceRef]);
 
   return (
     <div 
@@ -58,6 +68,7 @@ const Whiteboard = () => {
       }}
     >
       <TransformWrapper
+        ref={transformWrapperRef}
         initialScale={1}
         centerOnInit={true}
         minScale={0.2}
@@ -73,52 +84,44 @@ const Whiteboard = () => {
           }
         }}
       >
-        {({ instance, ...rest }) => {
-          if (instance) {
-            console.log("Current Zoom Scale:", instance.transformState.scale);
-          }
-          
-          return (
-            <React.Fragment>
-              <Controls />
-              <TransformComponent
-                wrapperStyle={{ width: "100%", height: "100%" }}
-                contentStyle={{
-                  width: `${whiteboardContentWidth}px`, 
-                  height: `${whiteboardContentHeight}px`,
-                  backgroundColor: '#f0f0f0',
-                  backgroundImage:
-                    `radial-gradient(#cccccc 1px, transparent 1px)`,
-                  backgroundSize: `20px 20px`,
-                }}
-              >
-                {pools.map((pool, index) => {
-                  const defaultX = (index % 3) * 850 + 50;
-                  const defaultY = Math.floor(index / 3) * 500 + 50;
-                  const left = pool.x ?? defaultX;
-                  const top = pool.y ?? defaultY;
+        <React.Fragment>
+          <Controls />
+          <TransformComponent
+            wrapperStyle={{ width: "100%", height: "100%" }}
+            contentStyle={{
+              width: `${whiteboardContentWidth}px`, 
+              height: `${whiteboardContentHeight}px`,
+              backgroundColor: '#f0f0f0',
+              backgroundImage:
+                `radial-gradient(#cccccc 1px, transparent 1px)`,
+              backgroundSize: `20px 20px`,
+            }}
+          >
+            {pools.map((pool, index) => {
+              const defaultX = (index % 3) * 850 + 50;
+              const defaultY = Math.floor(index / 3) * 500 + 50;
+              const left = pool.x ?? defaultX;
+              const top = pool.y ?? defaultY;
 
-                  return (
-                    <div 
-                      key={pool.id} 
-                      style={{
-                         position: 'absolute',
-                         left: `${left}px`, 
-                         top: `${top}px`, 
-                         width: '800px'
-                      }}
-                    >
-                      <DraggablePoolCanvas pool={pool} />
-                    </div>
-                  );
-                })}
-                {isOver && (
-                  <div className="absolute inset-0 bg-blue-100 opacity-50 pointer-events-none">Drop Here</div>
-                )}
-              </TransformComponent>
-            </React.Fragment>
-          );
-        }}
+              return (
+                <div 
+                  key={pool.id} 
+                  id={`pool-wrapper-${pool.id}`}
+                  style={{
+                     position: 'absolute',
+                     left: `${left}px`, 
+                     top: `${top}px`,
+                  }}
+                >
+                  <DraggablePoolCanvas pool={pool} />
+                </div>
+              );
+            })}
+            {isOver && (
+              <div className="absolute inset-0 bg-blue-100 opacity-50 pointer-events-none">Drop Here</div>
+            )}
+          </TransformComponent>
+        </React.Fragment>
       </TransformWrapper>
       
       {transformState && (

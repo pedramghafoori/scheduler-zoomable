@@ -1,55 +1,84 @@
 import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import ZoomablePoolCanvas from './ZoomablePoolCanvas'; // We will create this next
+import ZoomablePoolCanvas from './ZoomablePoolCanvas';
 import { Pool } from '@/lib/types';
-import { DraggableSyntheticListeners } from '@dnd-kit/core'; // Import this
+import { DraggableSyntheticListeners } from '@dnd-kit/core';
 
-// Constants from ZoomablePoolCanvas (or a shared constants file)
+// Constants
 const DAY_COLUMN_WIDTH = 200;
 const HOUR_LABEL_WIDTH = 60;
+// Remove unused dimension constants
+// const DEFAULT_POOL_WIDTH = 800; 
+// const DEFAULT_POOL_HEIGHT = 430;
+// const MIN_POOL_WIDTH = 200;
+// const MIN_POOL_HEIGHT = 200;
 
 interface DraggablePoolCanvasProps {
   pool: Pool;
-  // Add any other props needed by ZoomablePoolCanvas if DraggablePoolCanvas wraps it directly
-  // Example: If pool position is handled by Whiteboard, it might not be needed here
 }
 
 const DraggablePoolCanvas = ({ pool }: DraggablePoolCanvasProps) => {
+  // Draggable hook for the main pool movement
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `pool-${pool.id}`, // Unique draggable ID for the pool
-    data: { // Data to identify this draggable item
+    id: `pool-${pool.id}`,
+    data: {
       type: 'poolCanvas',
       poolId: pool.id,
     },
   });
 
-  // Calculate width based on the number of *currently selected* days in the pool
-  // This logic should match what ZoomablePoolCanvas expects/uses
-  const dynamicWidth = HOUR_LABEL_WIDTH + (pool.days.length * DAY_COLUMN_WIDTH);
-  const minWidth = HOUR_LABEL_WIDTH + 50; // Fallback minimum width if no days are selected
-  const finalWidth = pool.days.length > 0 ? dynamicWidth : minWidth;
+  // Remove resize draggable hook
+  /*
+  const { attributes: resizeAttributes, listeners: resizeListeners, setNodeRef: resizeNodeRef, isDragging: isResizing } = useDraggable({
+    id: `pool-resize-${pool.id}`,
+    data: {
+      type: 'poolResizeHandle',
+      poolId: pool.id,
+    },
+  });
+  */
 
-  const style = transform ? {
+  // Determine width based on days (height is now handled internally by ZoomablePoolCanvas)
+  const currentWidth = HOUR_LABEL_WIDTH + (pool.days.length * DAY_COLUMN_WIDTH);
+  const minWidth = HOUR_LABEL_WIDTH + 50; // Keep min width fallback
+  const finalWidth = pool.days.length > 0 ? currentWidth : minWidth;
+
+  // Style for the main container
+  const style: React.CSSProperties = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    // If pools are positioned absolutely by Whiteboard, we might not need left/top here
-    // position: 'relative' as const, // Changed from absolute
-    width: `${finalWidth}px`,
-    zIndex: isDragging ? 20 : 10, // Increase z-index while dragging
-    boxShadow: isDragging ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none',
+    width: `${finalWidth}px`, // Use finalWidth
+    // Height is now determined by ZoomablePoolCanvas content
+    zIndex: isDragging ? 20 : 10,
+    position: 'relative',
+    boxShadow: isDragging ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : undefined,
   } : {
-    // position: 'relative' as const,
     width: `${finalWidth}px`,
     zIndex: 10,
+    position: 'relative',
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className="flex flex-col"> 
       <ZoomablePoolCanvas
         pool={pool}
-        dynamicWidth={finalWidth}
+        dynamicWidth={finalWidth} // Pass width
+        // containerHeight prop is removed
         dragListeners={listeners}
         dragAttributes={attributes}
       />
+      {/* Remove Resize Handle */}
+      {/* 
+      <div
+        ref={resizeNodeRef}
+        {...resizeListeners}
+        {...resizeAttributes}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-nwse-resize rounded-tl-lg z-20 hover:bg-blue-700 transition-colors"
+        title="Resize Pool"
+        style={{ opacity: isResizing ? 0.7 : 1 }}
+      >
+      </div>
+      */}
     </div>
   );
 };

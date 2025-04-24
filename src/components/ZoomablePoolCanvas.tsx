@@ -5,6 +5,7 @@ import { useScheduleStore } from "@/stores/scheduleStore";
 import { Settings } from "lucide-react"; // Icon for options
 import { format } from "date-fns"; // For formatting hour labels
 import { DraggableSyntheticListeners, DraggableAttributes } from '@dnd-kit/core'; // Import this
+import { Input } from "@/components/ui/input"; // Import Input
 
 // Import shadcn components
 import {
@@ -31,21 +32,29 @@ const GRID_HOUR_HEIGHT = 60;
 const DAY_COLUMN_WIDTH = 200;
 const HOUR_LABEL_WIDTH = 60;
 const DAY_COLUMN_START = HOUR_LABEL_WIDTH;
+const POOL_HEADER_HEIGHT_APPROX = 40; // Approximate height of the header div above the canvas
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 18;
 
 const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes }: ZoomablePoolCanvasProps) => {
   // Store hooks
-  const { removePool, updatePoolDays, getSessionsForPoolDay } = useScheduleStore();
+  const { removePool, updatePoolDays, getSessionsForPoolDay, updatePoolTimeRange } = useScheduleStore();
 
-  // Popover state for day selection
+  // Popover state for day and time selection
   const [open, setOpen] = useState(false);
   const [selectedDaysLocal, setSelectedDaysLocal] = useState<DayOfWeek[]>(() =>
     pool.days.map(pd => pd.day)
   );
+  // Add local state for hours
+  const [startHourLocal, setStartHourLocal] = useState<number>(pool.startHour ?? DEFAULT_START_HOUR);
+  const [endHourLocal, setEndHourLocal] = useState<number>(pool.endHour ?? DEFAULT_END_HOUR);
 
-  // Sync local selected days if pool prop changes
+  // Sync local state if pool prop changes
   useEffect(() => {
     setSelectedDaysLocal(pool.days.map(pd => pd.day));
-  }, [pool.days]);
+    setStartHourLocal(pool.startHour ?? DEFAULT_START_HOUR);
+    setEndHourLocal(pool.endHour ?? DEFAULT_END_HOUR);
+  }, [pool.days, pool.startHour, pool.endHour]);
 
   // --- Sort the currently selected days from the prop for rendering order --- 
   const sortedPoolDays = [...pool.days].sort((a, b) =>
@@ -56,9 +65,31 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
   // Create a Set for efficient lookup of selected days from the prop
   const selectedDaysSetProp = new Set(pool.days.map(pd => pd.day));
 
+  // Define default hours directly in the component or import from constants
+  const startHour = pool.startHour ?? DEFAULT_START_HOUR;
+  const endHour = pool.endHour ?? DEFAULT_END_HOUR;
+  
+  // Calculate the number of hours to display
+  const hoursToShow = Math.max(1, endHour - startHour);
+  
+  // Calculate the required height for the Konva Stage content
+  const stageContentHeight = hoursToShow * GRID_HOUR_HEIGHT;
+  
+  // Calculate the height for the visible canvas wrapper div
+  // It should match the stage content height unless there are other elements inside
+  const canvasWrapperHeight = stageContentHeight;
+
+  // Calculate the total component height (including the header)
+  const totalComponentHeight = canvasWrapperHeight + POOL_HEADER_HEIGHT_APPROX;
+
   // Popover save handler
   const handleSaveChanges = () => {
+    // Validate hours (e.g., end > start, within 0-24)
+    const cleanStart = Math.max(0, Math.min(23, Math.floor(startHourLocal)));
+    const cleanEnd = Math.max(cleanStart + 1, Math.min(24, Math.floor(endHourLocal)));
+    
     updatePoolDays(pool.id, selectedDaysLocal);
+    updatePoolTimeRange(pool.id, cleanStart, cleanEnd); // Save hours
     setOpen(false);
   };
 
@@ -81,10 +112,10 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
   // const calculatedWidth = HOUR_LABEL_WIDTH + (selectedDayCount * DAY_COLUMN_WIDTH);
 
   return (
-    // Main container with rounded corners and shadow
-    <div className="flex flex-col bg-white border rounded-lg shadow-md">
+    <div className="flex flex-col bg-white border rounded-lg shadow-md overflow-hidden" 
+         style={{ height: `${totalComponentHeight}px` }}> {/* Set total height here */} 
       {/* Header with Pool Info, Drag Handle (optional), Options */}
-      <div className="bg-gray-50 border-b p-2 flex items-center space-x-2 rounded-t-lg">
+      <div className="bg-gray-50 border-b p-2 flex items-center space-x-2 rounded-t-lg flex-shrink-0">
         {/* Apply attributes AND listeners to the handle, and stop propagation */}
         <div 
           className="p-1 cursor-move touch-none" 
@@ -116,7 +147,7 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
               <Settings className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-56 p-4">
+          <PopoverContent className="w-64 p-4">
             <div className="grid gap-4">
               <div className="space-y-2">
                 <h4 className="font-medium leading-none">Displayed Days</h4>
@@ -137,6 +168,34 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                   </div>
                 ))}
               </div>
+
+              {/* Time Range Selection */}
+              <div className="space-y-2">
+                <h4 className="font-medium leading-none">Time Range (0-24)</h4>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor={`start-${pool.id}`} className="w-12">Start</Label>
+                  <Input
+                    id={`start-${pool.id}`}
+                    type="number"
+                    min={0}
+                    max={23} // Max start time is 11 PM (23)
+                    value={startHourLocal}
+                    onChange={(e) => setStartHourLocal(parseInt(e.target.value, 10) || 0)}
+                    className="h-8"
+                  />
+                  <Label htmlFor={`end-${pool.id}`} className="w-12">End</Label>
+                  <Input
+                    id={`end-${pool.id}`}
+                    type="number"
+                    min={1} // Min end time is 1 AM (1)
+                    max={24}
+                    value={endHourLocal}
+                    onChange={(e) => setEndHourLocal(parseInt(e.target.value, 10) || 1)}
+                    className="h-8"
+                  />
+                </div>
+              </div>
+
               <Button onClick={handleSaveChanges} size="sm">Save Changes</Button>
             </div>
           </PopoverContent>
@@ -158,48 +217,58 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
         </button>
       </div>
 
-      {/* Canvas Area */}
-      <div className="overflow-hidden relative rounded-b-lg" style={{ height: '400px' }}>
-        {/* Use a stable key for Stage if it helps performance/bugs */}
+      {/* Canvas Area - Use calculated height */}
+      <div 
+        className="overflow-hidden relative rounded-b-lg flex-grow" // Back to overflow-hidden
+        style={{ height: `${canvasWrapperHeight}px` }}
+      >
+        {/* Konva Stage - Use calculated content height */}
         <Stage
           key={`stage-${pool.id}`}
-          width={dynamicWidth} // Use width passed from wrapper
-          height={CANVAS_HEIGHT} // Height of the scrollable content
+          width={dynamicWidth} 
+          height={stageContentHeight} // Use calculated stage height
+          offsetY={startHour * GRID_HOUR_HEIGHT} // Offset Y to start at startHour
           className="bg-white"
-          listening={true} // Enable listening for potential drops
+          listening={true} 
         >
           <Layer>
-            {/* Hour Labels Area (Fixed Position) */}
-            <Rect x={0} y={0} width={HOUR_LABEL_WIDTH} height={CANVAS_HEIGHT} fill="#f9fafb" />
-            {Array.from({ length: 24 }).map((_, hour) => (
-              <Text
-                key={`hour-label-${hour}`}
-                x={5}
-                y={hour * GRID_HOUR_HEIGHT + 5}
-                text={format(new Date(0, 0, 0, hour), "ha")}
-                fontSize={10}
-                fill="#6b7280"
-                width={HOUR_LABEL_WIDTH - 10}
-                align="right"
-                listening={false} // Not interactive
-              />
-            ))}
+            {/* Hour Labels Area - adjust count and position */}
+            <Rect x={0} y={startHour * GRID_HOUR_HEIGHT} width={HOUR_LABEL_WIDTH} height={stageContentHeight} fill="#f9fafb" />
+            {Array.from({ length: hoursToShow }).map((_, i) => {
+              const hour = startHour + i;
+              return (
+                 <Text
+                    key={`hour-label-${hour}`}
+                    x={5}
+                    y={(hour * GRID_HOUR_HEIGHT) + 5} // Position based on actual hour
+                    text={format(new Date(0, 0, 0, hour), "ha")}
+                    fontSize={10}
+                    fill="#6b7280"
+                    width={HOUR_LABEL_WIDTH - 10}
+                    align="right"
+                    listening={false}
+                 />
+              );
+            })}
 
-            {/* Dotted Hour Lines (Span full dynamic width) */}
-            {Array.from({ length: 24 }).map((_, i) => (
-              <Rect
-                key={`hour-line-${i}`}
-                x={HOUR_LABEL_WIDTH} // Start after labels
-                y={i * GRID_HOUR_HEIGHT}
-                width={dynamicWidth - HOUR_LABEL_WIDTH} // Fill remaining width
-                height={1}
-                fill="#e5e7eb"
-                dash={[4, 2]}
-                listening={false}
-              />
-            ))}
+            {/* Dotted Hour Lines - adjust count and position */}
+            {Array.from({ length: hoursToShow + 1 }).map((_, i) => {
+               const hour = startHour + i;
+               return (
+                  <Rect
+                     key={`hour-line-${hour}`}
+                     x={HOUR_LABEL_WIDTH}
+                     y={hour * GRID_HOUR_HEIGHT} // Position based on actual hour
+                     width={dynamicWidth - HOUR_LABEL_WIDTH}
+                     height={1}
+                     fill="#e5e7eb"
+                     dash={[4, 2]}
+                     listening={false}
+                  />
+                );
+            })}
 
-            {/* --- Day Columns --- */}
+            {/* Day Columns - adjust height */}
             {DAYS_OF_WEEK.map((dayOfWeek, index) => {
               const isSelected = selectedDaysSetProp.has(dayOfWeek);
               const columnX = getColumnXByIndex(index);
@@ -208,16 +277,19 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                 <Group
                   key={`day-column-${dayOfWeek}`}
                   x={columnX}
-                  y={0}
+                  y={startHour * GRID_HOUR_HEIGHT}
                   // Hide unselected columns visually OR use opacity
                   visible={isSelected} 
                   // opacity={isSelected ? 1 : 0.2} 
                   listening={isSelected} // Only allow drops on selected days
                   id={`pool-${pool.id}-day-${dayOfWeek}`} // ID for drop detection
+                  // Optional: Clip the group if needed, though Stage offset handles drawing
+                  // clipY={startHour * GRID_HOUR_HEIGHT}
+                  // clipHeight={stageContentHeight}
                 >
-                  {/* Vertical Divider Line */}
-                  <Rect x={0} y={0} width={1} height={CANVAS_HEIGHT} fill="#e5e7eb" listening={false} />
-                  {/* Day Header Text (within the column) */}
+                  {/* Vertical Divider Line - adjust height */}
+                  <Rect x={0} y={startHour * GRID_HOUR_HEIGHT} width={1} height={stageContentHeight} fill="#e5e7eb" listening={false} />
+                  {/* Day Header Text - Position remains relative to group */}
                   <Text
                     text={dayOfWeek}
                     x={0} 
@@ -243,9 +315,9 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                 </Group>
               );
             })}
-            {/* --- End Day Columns --- */}
+            {/* End Day Columns */}
 
-            {/* --- Course Blocks (Render based on sorted selected days) --- */}
+            {/* Course Blocks - Positions are relative to Stage, offset handles visibility */}
             {sortedPoolDays.map((poolDay) => {
               const dayIndex = DAYS_OF_WEEK.indexOf(poolDay.day);
               const blockX = getColumnXByIndex(dayIndex); // Position based on absolute index
@@ -272,7 +344,7 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                 </Group>
               ));
             })}
-            {/* --- End Course Blocks --- */}
+            {/* End Course Blocks */}
           </Layer>
         </Stage>
       </div>

@@ -7,6 +7,8 @@ export interface Pool {
   days: PoolDay[];
   x?: number;
   y?: number;
+  startHour?: number;
+  endHour?: number;
 }
 
 export interface PoolDay {

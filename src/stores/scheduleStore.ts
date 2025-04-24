@@ -14,6 +14,7 @@ interface ScheduleState {
   removePool: (poolId: string) => void;
   updatePoolDays: (poolId: string, selectedDays: DayOfWeek[]) => void;
   updatePoolPosition: (poolId: string, x: number, y: number) => void;
+  updatePoolTimeRange: (poolId: string, startHour: number, endHour: number) => void;
   reorderPools: (activeId: string, overId: string) => void;
   addCourse: (title: string, totalHours: number) => void;
   createSession: (courseId: string, poolId: string, day: DayOfWeek, start: number, end: number) => string;
@@ -29,11 +30,17 @@ interface ScheduleState {
   getPool: (poolId: string) => Pool | undefined;
 }
 
+// Sensible defaults (e.g., 8 AM to 6 PM)
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 18;
+
 const INITIAL_POOLS: Pool[] = [
   {
     id: "pool-1",
     title: "Main Pool",
     location: "Building A",
+    startHour: DEFAULT_START_HOUR,
+    endHour: DEFAULT_END_HOUR,
     days: [
       { id: "poolday-1", poolId: "pool-1", day: "Monday" as DayOfWeek },
       { id: "poolday-2", poolId: "pool-1", day: "Wednesday" as DayOfWeek },
@@ -44,6 +51,8 @@ const INITIAL_POOLS: Pool[] = [
     id: "pool-2",
     title: "Training Pool",
     location: "Building B",
+    startHour: 7, // Example different hours
+    endHour: 20,
     days: [
       { id: "poolday-4", poolId: "pool-2", day: "Tuesday" as DayOfWeek },
       { id: "poolday-5", poolId: "pool-2", day: "Thursday" as DayOfWeek },
@@ -83,6 +92,8 @@ export const useScheduleStore = create<ScheduleState>()(
               title,
               location,
               days: poolDays,
+              startHour: DEFAULT_START_HOUR,
+              endHour: DEFAULT_END_HOUR,
               x: (state.pools.length % 3) * 850 + 50,
               y: Math.floor(state.pools.length / 3) * 500 + 50,
             },
@@ -117,6 +128,14 @@ export const useScheduleStore = create<ScheduleState>()(
         set((state) => ({
           pools: state.pools.map((pool) =>
             pool.id === poolId ? { ...pool, x: x, y: y } : pool
+          ),
+        }));
+      },
+
+      updatePoolTimeRange: (poolId, startHour, endHour) => {
+        set((state) => ({
+          pools: state.pools.map((pool) => 
+            pool.id === poolId ? { ...pool, startHour, endHour } : pool
           ),
         }));
       },

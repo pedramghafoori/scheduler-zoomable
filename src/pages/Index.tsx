@@ -1,5 +1,6 @@
 import Layout from "@/components/Layout";
 import CourseBank from "@/components/CourseBank";
+import PoolNavigator from "@/components/PoolNavigator";
 import AddPoolModal from "@/components/AddPoolModal";
 import Whiteboard from "@/components/Whiteboard";
 import { DndContext, DragEndEvent, DragStartEvent, closestCenter } from '@dnd-kit/core';
@@ -10,8 +11,13 @@ import { HOUR_HEIGHT } from "@/lib/constants";
 import { useRef } from "react";
 
 const Index = () => {
-  const { createSession, pools, updatePoolPosition } = useScheduleStore();
-  const { whiteboardScale, startPoolDrag, endPoolDrag } = useDragStore((state) => ({
+  const { createSession, pools, updatePoolPosition, getPool } = useScheduleStore((state) => ({
+    createSession: state.createSession,
+    pools: state.pools,
+    updatePoolPosition: state.updatePoolPosition,
+    getPool: state.getPool,
+  }));
+  const { whiteboardScale, startPoolDrag, endPoolDrag } = useDragStore((state) => ({ 
     whiteboardScale: state.whiteboardScale,
     startPoolDrag: state.startPoolDrag,
     endPoolDrag: state.endPoolDrag,
@@ -41,7 +47,27 @@ const Index = () => {
       return;
     }
 
-    if (active.data.current?.type === 'course' && active.data.current?.from === 'bank') {
+    // --- Pool Movement Logic --- 
+    if (active.data.current?.type === 'poolCanvas') {
+      const poolId = active.data.current.poolId as string;
+      const draggedPool = getPool(poolId); // Use getPool
+
+      if (draggedPool) {
+        const adjustedDeltaX = delta.x / whiteboardScale;
+        const adjustedDeltaY = delta.y / whiteboardScale;
+
+        const newX = (draggedPool.x ?? 0) + adjustedDeltaX;
+        const newY = (draggedPool.y ?? 0) + adjustedDeltaY;
+        
+        // Note: Position update happens *after* drag end
+        console.log(`Updating position for pool ${poolId} to x: ${newX}, y: ${newY} (scale: ${whiteboardScale})`);
+        updatePoolPosition(poolId, newX, newY);
+      } else {
+          console.warn(`Could not find dragged pool with ID: ${poolId}`);
+      }
+    }
+    // --- Course Dragging Logic --- 
+    else if (active.data.current?.type === 'course' && active.data.current?.from === 'bank') {
       if (!over) {
          console.log("Dropped course into empty space");
          return;
@@ -73,24 +99,10 @@ const Index = () => {
       } else {
         console.log("Dropped course onto non-day target or whiteboard background");
       }
-    } else if (active.data.current?.type === 'poolCanvas') {
-      const poolId = active.data.current.poolId as string;
-      const draggedPool = pools.find(p => p.id === poolId);
-
-      if (draggedPool) {
-        const adjustedDeltaX = delta.x / whiteboardScale;
-        const adjustedDeltaY = delta.y / whiteboardScale;
-
-        const newX = (draggedPool.x ?? 0) + adjustedDeltaX;
-        const newY = (draggedPool.y ?? 0) + adjustedDeltaY;
-        
-        console.log(`Updating position for pool ${poolId} to x: ${newX}, y: ${newY} (scale: ${whiteboardScale})`);
-        updatePoolPosition(poolId, newX, newY);
-      } else {
-          console.warn(`Could not find dragged pool with ID: ${poolId}`);
-      }
-    } else {
-        console.log("Unhandled drag type:", active.data.current?.type);
+    }
+    // --- Unhandled --- 
+    else {
+        console.log("Unhandled drag end type:", active.data.current?.type);
     }
   };
 
@@ -102,6 +114,7 @@ const Index = () => {
         collisionDetection={closestCenter}
       >
         <CourseBank />
+        <PoolNavigator />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-auto">
             <Whiteboard />
