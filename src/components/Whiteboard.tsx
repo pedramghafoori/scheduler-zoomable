@@ -33,66 +33,73 @@ const Whiteboard = () => {
     data: { type: 'whiteboard' }
   });
 
-  const whiteboardContentWidth = 3000;
-  const whiteboardContentHeight = 2000;
+  const whiteboardContentWidth = 20000;
+  const whiteboardContentHeight = 20000;
 
   return (
     <div 
       ref={setNodeRef} 
       className="w-full h-full relative overflow-hidden"
       style={{
-        backgroundColor: '#f0f0f0', // Light gray background
+        backgroundColor: '#f0f0f0', 
         backgroundImage: 
           `radial-gradient(#cccccc 1px, transparent 1px)`,
-        backgroundSize: `20px 20px`, // Adjust spacing of dots
+        backgroundSize: `20px 20px`, 
       }}
     >
       <TransformWrapper
         initialScale={1}
-        initialPositionX={0}
-        initialPositionY={0}
+        centerOnInit={true}
         minScale={0.2}
-        limitToBounds={false} // Allow panning beyond initial view
+        limitToBounds={false}
         wheel={{ step: 0.1 }}
       >
-        {({ instance, ...rest }) => (
-          <React.Fragment>
-            <Controls />
-            <TransformComponent
-              wrapperStyle={{ width: "100%", height: "100%" }}
-              contentStyle={{
-                width: `${whiteboardContentWidth}px`, 
-                height: `${whiteboardContentHeight}px`,
-              }}
-            >
-              {pools.map((pool, index) => {
-                // Use stored position or calculate default based on index
-                const defaultX = (index % 3) * 850 + 50;
-                const defaultY = Math.floor(index / 3) * 500 + 50;
-                const left = pool.x ?? defaultX;
-                const top = pool.y ?? defaultY;
+        {({ instance, ...rest }) => {
+          if (instance) {
+            console.log("Current Zoom Scale:", instance.transformState.scale);
+          }
+          
+          return (
+            <React.Fragment>
+              <Controls />
+              <TransformComponent
+                wrapperStyle={{ width: "100%", height: "100%" }}
+                contentStyle={{
+                  width: `${whiteboardContentWidth}px`, 
+                  height: `${whiteboardContentHeight}px`,
+                  backgroundColor: '#f0f0f0',
+                  backgroundImage:
+                    `radial-gradient(#cccccc 1px, transparent 1px)`,
+                  backgroundSize: `20px 20px`,
+                }}
+              >
+                {pools.map((pool, index) => {
+                  const defaultX = (index % 3) * 850 + 50;
+                  const defaultY = Math.floor(index / 3) * 500 + 50;
+                  const left = pool.x ?? defaultX;
+                  const top = pool.y ?? defaultY;
 
-                return (
-                  <div 
-                    key={pool.id} 
-                    style={{
-                       position: 'absolute',
-                       left: `${left}px`, 
-                       top: `${top}px`, 
-                       width: '800px' // Keep example fixed width for now
-                    }}
-                  >
-                    <DraggablePoolCanvas pool={pool} />
-                  </div>
-                );
-              })}
-              {/* Indicate drop zone */}
-              {isOver && (
-                <div className="absolute inset-0 bg-blue-100 opacity-50 pointer-events-none">Drop Here</div>
-              )}
-            </TransformComponent>
-          </React.Fragment>
-        )}
+                  return (
+                    <div 
+                      key={pool.id} 
+                      style={{
+                         position: 'absolute',
+                         left: `${left}px`, 
+                         top: `${top}px`, 
+                         width: '800px'
+                      }}
+                    >
+                      <DraggablePoolCanvas pool={pool} />
+                    </div>
+                  );
+                })}
+                {isOver && (
+                  <div className="absolute inset-0 bg-blue-100 opacity-50 pointer-events-none">Drop Here</div>
+                )}
+              </TransformComponent>
+            </React.Fragment>
+          );
+        }}
       </TransformWrapper>
     </div>
   );
