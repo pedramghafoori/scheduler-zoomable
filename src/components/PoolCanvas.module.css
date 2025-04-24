@@ -1,0 +1,50 @@
+.pool-collapsed {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.pool-expanded {
+  width: 100%;
+  position: relative;
+}
+
+.pool-grid {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  min-height: 720px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.pool-day-column {
+  position: relative;
+  border-right: 1px solid #e5e7eb;
+  width: 100%;
+  min-width: 300px;
+  height: 100%;
+}
+
+.pool-day-column:last-child {
+  border-right: none;
+}
+
+.pool-day-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pool-day-content {
+  position: relative;
+  background-image: linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+  background-size: 100% 60px;
+  min-height: 720px;
+  height: 100%;
+} 
