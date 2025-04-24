@@ -3,6 +3,7 @@ import { useScheduleStore } from "@/stores/scheduleStore";
 import { useWhiteboardStore } from "@/stores/whiteboardStore";
 import { useDragStore } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
+import AddPoolModal from "@/components/AddPoolModal";
 import { Pool } from '@/lib/types'; // Import Pool type
 
 // Constants (should match those used in Pool/Canvas components)
@@ -74,12 +75,18 @@ const PoolNavigator = () => {
 
   return (
     <div 
-      // ... container styling ...
       className={`absolute top-[calc(theme(spacing.32)+(100vh-theme(spacing.32)-theme(spacing.8))/2+theme(spacing.6))] left-4 z-10 w-64 h-[calc((100vh-theme(spacing.32)-theme(spacing.8))/2-theme(spacing.2))] border bg-white rounded-lg shadow-md flex flex-col overflow-hidden`}
     >
-       {/* ... header ... */}
+      {/* Header with Title */}
+      <div className="p-4 border-b flex-shrink-0">
+        <h2 className="font-bold text-lg">Pools</h2>
+      </div>
+      
+      {/* Pool List Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2"> 
-         {/* ... pool buttons mapping ... */} 
+        {pools.length === 0 && (
+          <p className="text-sm text-gray-500 italic">No pools created yet.</p>
+        )}
         {pools.map((pool) => (
           <Button 
             key={pool.id}
@@ -92,6 +99,11 @@ const PoolNavigator = () => {
             {pool.title}
           </Button>
         ))}
+      </div>
+
+      {/* Footer with Add Pool Button */}
+      <div className="p-4 border-t flex-shrink-0">
+        <AddPoolModal />
       </div>
     </div>
   );

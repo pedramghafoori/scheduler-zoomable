@@ -43,7 +43,7 @@ const AddPoolModal = () => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button>Add Pool</Button>
+        <Button className="w-full">Add Pool</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

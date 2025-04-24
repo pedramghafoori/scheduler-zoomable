@@ -146,9 +146,6 @@ const Layout = ({ children }: LayoutProps) => {
         </header>
         <div className="bg-gray-50 p-3 flex justify-between items-center border-b shadow-sm fixed top-16 left-0 right-0 z-20 h-12">
             <h2 className="text-lg font-bold pl-4">Schedule</h2>
-            <div className="pr-4">
-              <AddPoolModal />
-            </div>
         </div>
         <main className="flex-1 flex pt-28">
           {children}
