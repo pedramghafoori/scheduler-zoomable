@@ -3,22 +3,26 @@ import {
   TransformWrapper,
   TransformComponent,
   useControls,
+  ReactZoomPanPinchRef,
+  StateType
 } from "react-zoom-pan-pinch";
 import { useScheduleStore } from "@/stores/scheduleStore";
+import { useDragStore } from "@/stores/dragStore";
 import DraggablePoolCanvas from './DraggablePoolCanvas'; // We will create this next
 import { useDroppable } from '@dnd-kit/core';
+import MiniMap from './MiniMap';
 
 const Controls = () => {
   const { zoomIn, zoomOut, resetTransform } = useControls();
   return (
-    <div className="absolute top-2 right-2 z-10 flex space-x-1">
-      <button onClick={() => zoomIn()} className="bg-gray-200 p-1 rounded text-sm">
+    <div className="absolute top-14 right-2 z-50 flex space-x-1">
+      <button onClick={() => zoomIn()} className="bg-gray-200 hover:bg-gray-300 p-1 rounded text-sm shadow">
         Zoom In
       </button>
-      <button onClick={() => zoomOut()} className="bg-gray-200 p-1 rounded text-sm">
+      <button onClick={() => zoomOut()} className="bg-gray-200 hover:bg-gray-300 p-1 rounded text-sm shadow">
         Zoom Out
       </button>
-      <button onClick={() => resetTransform()} className="bg-gray-200 p-1 rounded text-sm">
+      <button onClick={() => resetTransform()} className="bg-gray-200 hover:bg-gray-300 p-1 rounded text-sm shadow">
         Reset
       </button>
     </div>
@@ -27,6 +31,11 @@ const Controls = () => {
 
 const Whiteboard = () => {
   const pools = useScheduleStore((state) => state.pools);
+  const { updateScale, isPoolDragging } = useDragStore((state) => ({
+    updateScale: state.updateScale,
+    isPoolDragging: state.isPoolDragging,
+  }));
+  const [transformState, setTransformState] = useState<StateType | null>(null);
 
   const { setNodeRef, isOver } = useDroppable({
     id: 'whiteboard-droppable',
@@ -35,6 +44,7 @@ const Whiteboard = () => {
 
   const whiteboardContentWidth = 20000;
   const whiteboardContentHeight = 20000;
+  const miniMapSize = 150;
 
   return (
     <div 
@@ -52,7 +62,16 @@ const Whiteboard = () => {
         centerOnInit={true}
         minScale={0.2}
         limitToBounds={false}
-        wheel={{ step: 0.1 }}
+        wheel={{ step: 0.1, disabled: isPoolDragging }}
+        panning={{ disabled: isPoolDragging }}
+        pinch={{ disabled: isPoolDragging }}
+        doubleClick={{ disabled: isPoolDragging }}
+        onTransformed={(ref, state) => {
+          if (!isPoolDragging) {
+            setTransformState(state);
+            updateScale(state.scale);
+          }
+        }}
       >
         {({ instance, ...rest }) => {
           if (instance) {
@@ -101,6 +120,16 @@ const Whiteboard = () => {
           );
         }}
       </TransformWrapper>
+      
+      {transformState && (
+          <MiniMap 
+            pools={pools}
+            transformState={transformState}
+            whiteboardWidth={whiteboardContentWidth}
+            whiteboardHeight={whiteboardContentHeight}
+            miniMapSize={miniMapSize}
+          />
+      )}
     </div>
   );
 };

@@ -114,7 +114,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
 
     return (
       <div
-        className={`course-block-wrapper ${isGrid ? "absolute" : "relative"}`}
+        className={`course-block-wrapper ${isGrid ? "absolute" : "relative"} rounded-md`}
         style={{ ...gridStyle, ...bankStyle }}
       >
         <div

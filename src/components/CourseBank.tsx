@@ -34,9 +34,9 @@ const CourseBank = () => {
   return (
     <div 
       ref={setNodeRef}
-      className={`w-64 border-r bg-sidebar flex flex-col sticky top-0 h-screen ${isOver ? 'bg-red-50' : ''}`}
+      className={`absolute top-32 left-4 z-10 w-64 h-[calc(100vh-theme(spacing.32)-theme(spacing.8))] border bg-white rounded-lg shadow-md flex flex-col overflow-hidden ${isOver ? 'ring-2 ring-blue-400' : ''}`}
     >
-      <div className="p-4 border-b bg-white">
+      <div className="p-4 border-b">
         <h2 className="font-bold text-lg">Course Bank</h2>
         <p className="text-xs text-gray-500 mt-1">
           Drag courses to schedule them or drop scheduled courses here to delete

@@ -7,6 +7,7 @@ import { useScheduleStore } from "@/stores/scheduleStore";
 import { DayOfWeek } from "@/lib/types";
 import { DEFAULT_SESSION_DURATION } from "@/lib/constants";
 import { clientYToMinutes } from "@/lib/position";
+import AddPoolModal from "@/components/AddPoolModal";
 
 interface LayoutProps {
   children: ReactNode;
@@ -117,9 +118,9 @@ const Layout = ({ children }: LayoutProps) => {
       onDragEnd={handleDragEnd}
       collisionDetection={pointerWithin}
     >
-      <div className="min-h-screen flex flex-col">
-        <header className="bg-white border-b">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <div className="h-screen flex flex-col">
+        <header className="bg-white border-b fixed top-0 left-0 right-0 z-30 shadow-sm">
+          <div className="container mx-auto px-4 py-4 flex justify-between items-center h-16">
             <h1 className="text-xl font-bold">Pool-Course Scheduler</h1>
             <nav>
               <ul className="flex space-x-6">
@@ -143,7 +144,15 @@ const Layout = ({ children }: LayoutProps) => {
             </nav>
           </div>
         </header>
-        <main className="flex-1 flex">{children}</main>
+        <div className="bg-gray-50 p-3 flex justify-between items-center border-b shadow-sm fixed top-16 left-0 right-0 z-20 h-12">
+            <h2 className="text-lg font-bold pl-4">Schedule</h2>
+            <div className="pr-4">
+              <AddPoolModal />
+            </div>
+        </div>
+        <main className="flex-1 flex pt-28">
+          {children}
+        </main>
       </div>
     </DndContext>
   );

@@ -2,6 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Add overflow: hidden here */
+html,
+body {
+  @apply h-full overflow-hidden;
+}
+
+body {
+  @apply font-sans antialiased;
+}
+
+/* Example: Add a custom scrollbar style if needed */
+/*
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+*/
+
 @layer base {
   :root {
     --background: 0 0% 100%;

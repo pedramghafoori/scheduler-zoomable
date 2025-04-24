@@ -2,19 +2,39 @@ import Layout from "@/components/Layout";
 import CourseBank from "@/components/CourseBank";
 import AddPoolModal from "@/components/AddPoolModal";
 import Whiteboard from "@/components/Whiteboard";
-import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragStartEvent, closestCenter } from '@dnd-kit/core';
 import { useScheduleStore } from "@/stores/scheduleStore";
 import { useDragStore } from "@/stores/dragStore";
 import { Course, DayOfWeek } from "@/lib/types";
 import { HOUR_HEIGHT } from "@/lib/constants";
+import { useRef } from "react";
 
 const Index = () => {
   const { createSession, pools, updatePoolPosition } = useScheduleStore();
+  const { whiteboardScale, startPoolDrag, endPoolDrag } = useDragStore((state) => ({
+    whiteboardScale: state.whiteboardScale,
+    startPoolDrag: state.startPoolDrag,
+    endPoolDrag: state.endPoolDrag,
+  }));
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const whiteboardContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    console.log("Drag started:", { active });
+    if (active.data.current?.type === 'poolCanvas') {
+      startPoolDrag();
+    }
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over, delta } = event;
 
-    console.log("Drag ended:", { active, over, delta });
+    console.log("Drag ended:", { active, over, delta, whiteboardScale });
+
+    if (active?.data.current?.type === 'poolCanvas') {
+       endPoolDrag();
+    }
 
     if (!active) {
       console.log("Drag cancelled or invalid active element");
@@ -58,10 +78,13 @@ const Index = () => {
       const draggedPool = pools.find(p => p.id === poolId);
 
       if (draggedPool) {
-        const newX = (draggedPool.x ?? 0) + delta.x;
-        const newY = (draggedPool.y ?? 0) + delta.y;
+        const adjustedDeltaX = delta.x / whiteboardScale;
+        const adjustedDeltaY = delta.y / whiteboardScale;
+
+        const newX = (draggedPool.x ?? 0) + adjustedDeltaX;
+        const newY = (draggedPool.y ?? 0) + adjustedDeltaY;
         
-        console.log(`Updating position for pool ${poolId} to x: ${newX}, y: ${newY}`);
+        console.log(`Updating position for pool ${poolId} to x: ${newX}, y: ${newY} (scale: ${whiteboardScale})`);
         updatePoolPosition(poolId, newX, newY);
       } else {
           console.warn(`Could not find dragged pool with ID: ${poolId}`);
@@ -73,13 +96,13 @@ const Index = () => {
 
   return (
     <Layout>
-      <DndContext onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+      <DndContext 
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd} 
+        collisionDetection={closestCenter}
+      >
         <CourseBank />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="bg-white p-3 flex justify-between items-center">
-            <h2 className="text-lg font-bold">Schedule</h2>
-            <AddPoolModal />
-          </div>
           <div className="flex-1 overflow-auto">
             <Whiteboard />
           </div>

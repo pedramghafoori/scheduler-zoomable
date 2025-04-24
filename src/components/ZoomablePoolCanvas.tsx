@@ -85,8 +85,13 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
     <div className="flex flex-col bg-white border rounded-lg shadow-md">
       {/* Header with Pool Info, Drag Handle (optional), Options */}
       <div className="bg-gray-50 border-b p-2 flex items-center space-x-2 rounded-t-lg">
-        {/* Apply attributes AND listeners to the handle */}
-        <div className="p-1 cursor-move touch-none" {...dragListeners} {...dragAttributes}>
+        {/* Apply attributes AND listeners to the handle, and stop propagation */}
+        <div 
+          className="p-1 cursor-move touch-none" 
+          onPointerDown={(e) => e.stopPropagation()}
+          {...dragListeners} 
+          {...dragAttributes}
+        >
            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-700">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
