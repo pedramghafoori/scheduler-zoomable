@@ -10,7 +10,7 @@ interface ScheduleState {
   sessions: Session[];
   
   // Actions
-  addPool: (title: string, location: string, days: DayOfWeek[]) => void;
+  addPool: (title: string, location: string, days: DayOfWeek[], x?: number, y?: number) => void;
   removePool: (poolId: string) => void;
   updatePoolDays: (poolId: string, selectedDays: DayOfWeek[]) => void;
   updatePoolPosition: (poolId: string, x: number, y: number) => void;
@@ -76,7 +76,7 @@ export const useScheduleStore = create<ScheduleState>()(
       courses: INITIAL_COURSES,
       sessions: [],
 
-      addPool: (title, location, days) => {
+      addPool: (title, location, days, x, y) => {
         const newPoolId = nanoid();
         const poolDays = days.map((day) => ({
           id: nanoid(),
@@ -94,8 +94,8 @@ export const useScheduleStore = create<ScheduleState>()(
               days: poolDays,
               startHour: DEFAULT_START_HOUR,
               endHour: DEFAULT_END_HOUR,
-              x: (state.pools.length % 3) * 850 + 50,
-              y: Math.floor(state.pools.length / 3) * 500 + 50,
+              x: x ?? 50,
+              y: y ?? 50,
             },
           ],
         }));

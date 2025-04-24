@@ -3,6 +3,7 @@ import { useDraggable } from '@dnd-kit/core';
 import ZoomablePoolCanvas from './ZoomablePoolCanvas';
 import { Pool } from '@/lib/types';
 import { DraggableSyntheticListeners } from '@dnd-kit/core';
+import { useDragStore } from "@/stores/dragStore";
 
 // Constants
 const DAY_COLUMN_WIDTH = 200;
@@ -18,6 +19,8 @@ interface DraggablePoolCanvasProps {
 }
 
 const DraggablePoolCanvas = ({ pool }: DraggablePoolCanvasProps) => {
+  const whiteboardScale = useDragStore((state) => state.whiteboardScale);
+
   // Draggable hook for the main pool movement
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `pool-${pool.id}`,
@@ -45,9 +48,9 @@ const DraggablePoolCanvas = ({ pool }: DraggablePoolCanvasProps) => {
 
   // Style for the main container
   const style: React.CSSProperties = transform ? {
+    // Apply the raw dnd-kit transform directly
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    width: `${finalWidth}px`, // Use finalWidth
-    // Height is now determined by ZoomablePoolCanvas content
+    width: `${finalWidth}px`,
     zIndex: isDragging ? 20 : 10,
     position: 'relative',
     boxShadow: isDragging ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : undefined,

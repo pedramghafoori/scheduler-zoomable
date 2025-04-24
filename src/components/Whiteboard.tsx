@@ -15,6 +15,34 @@ import { useWhiteboardStore } from "@/stores/whiteboardStore";
 
 const Controls = () => {
   const { zoomIn, zoomOut, resetTransform } = useControls();
+  const instanceRef = useWhiteboardStore((state) => state.instanceRef);
+  const whiteboardContentWidth = 20000;
+  const whiteboardContentHeight = 20000;
+  const APP_HEADER_HEIGHT = 112; // Need header height for viewport calculation
+
+  const handleReset = () => {
+    if (instanceRef) {
+      const targetScale = 1;
+      const targetX = whiteboardContentWidth / 2;
+      const targetY = whiteboardContentHeight / 2;
+
+      // Calculate viewport center
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight - APP_HEADER_HEIGHT;
+      const viewportCenterX = viewportWidth / 2;
+      const viewportCenterY = viewportHeight / 2;
+
+      // Calculate target transform to center the point
+      const targetPositionX = viewportCenterX - (targetX * targetScale);
+      const targetPositionY = viewportCenterY - (targetY * targetScale);
+
+      // Set transform to center the middle point at scale 1
+      instanceRef.setTransform(targetPositionX, targetPositionY, targetScale, 600, 'easeOutQuad');
+    } else {
+      resetTransform();
+    }
+  };
+
   return (
     <div className="absolute top-14 right-2 z-50 flex space-x-1">
       <button onClick={() => zoomIn()} className="bg-gray-200 hover:bg-gray-300 p-1 rounded text-sm shadow">
@@ -23,7 +51,7 @@ const Controls = () => {
       <button onClick={() => zoomOut()} className="bg-gray-200 hover:bg-gray-300 p-1 rounded text-sm shadow">
         Zoom Out
       </button>
-      <button onClick={() => resetTransform()} className="bg-gray-200 hover:bg-gray-300 p-1 rounded text-sm shadow">
+      <button onClick={handleReset} className="bg-gray-200 hover:bg-gray-300 p-1 rounded text-sm shadow">
         Reset
       </button>
     </div>
@@ -36,9 +64,11 @@ const Whiteboard = () => {
     updateScale: state.updateScale,
     isPoolDragging: state.isPoolDragging,
   }));
-  const setInstanceRef = useWhiteboardStore((state) => state.setInstanceRef);
+  const { setInstanceRef, setTransformState } = useWhiteboardStore((state) => ({
+    setInstanceRef: state.setInstanceRef,
+    setTransformState: state.setTransformState,
+  }));
   const transformWrapperRef = useRef<ReactZoomPanPinchRef | null>(null);
-  const [transformState, setTransformState] = useState<StateType | null>(null);
 
   const { setNodeRef, isOver } = useDroppable({
     id: 'whiteboard-droppable',
@@ -124,17 +154,30 @@ const Whiteboard = () => {
         </React.Fragment>
       </TransformWrapper>
       
-      {transformState && (
-          <MiniMap 
-            pools={pools}
-            transformState={transformState}
-            whiteboardWidth={whiteboardContentWidth}
-            whiteboardHeight={whiteboardContentHeight}
-            miniMapSize={miniMapSize}
-          />
-      )}
+      <MiniMapWrapper />
     </div>
   );
 };
+
+// Helper component to access store state for MiniMap props
+const MiniMapWrapper = () => {
+  const pools = useScheduleStore((state) => state.pools);
+  const transformState = useWhiteboardStore((state) => state.transformState);
+  const whiteboardContentWidth = 20000;
+  const whiteboardContentHeight = 20000;
+  const miniMapSize = 150;
+
+  if (!transformState) return null;
+
+  return (
+    <MiniMap 
+      pools={pools}
+      transformState={transformState}
+      whiteboardWidth={whiteboardContentWidth}
+      whiteboardHeight={whiteboardContentHeight}
+      miniMapSize={miniMapSize}
+    />
+  );
+}
 
 export default Whiteboard; 

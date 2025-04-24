@@ -5,7 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useScheduleStore } from "@/stores/scheduleStore";
+import { useWhiteboardStore } from "@/stores/whiteboardStore";
+import { useDragStore } from "@/stores/dragStore";
 import { DAYS_OF_WEEK, DayOfWeek } from "@/lib/constants";
+
+const APP_HEADER_HEIGHT = 112;
 
 const AddPoolModal = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,6 +18,7 @@ const AddPoolModal = () => {
   const [selectedDays, setSelectedDays] = useState<Record<string, boolean>>({});
   
   const { addPool } = useScheduleStore();
+  const transformState = useWhiteboardStore((state) => state.transformState);
   
   const handleToggleDay = (day: string) => {
     setSelectedDays((prev) => ({
@@ -27,14 +32,31 @@ const AddPoolModal = () => {
     
     const days = Object.entries(selectedDays)
       .filter(([_, isSelected]) => isSelected)
-      .map(([day]) => day as DayOfWeek); // Cast to DayOfWeek type
+      .map(([day]) => day as DayOfWeek);
     
     if (days.length === 0) return;
+
+    let initialX = 50;
+    let initialY = 50;
     
-    addPool(title.trim(), location.trim(), days);
+    if (transformState) {
+      const { positionX, positionY, scale } = transformState;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight - APP_HEADER_HEIGHT;
+      const viewportCenterX = viewportWidth / 2;
+      const viewportCenterY = viewportHeight / 2;
+
+      initialX = (viewportCenterX - positionX) / scale;
+      initialY = (viewportCenterY - positionY) / scale;
+      
+      console.log("Calculated initial pool position:", { initialX, initialY, scale, positionX, positionY });
+    } else {
+      console.warn("Could not get whiteboard transform state for initial pool positioning.");
+    }
+    
+    addPool(title.trim(), location.trim(), days, initialX, initialY);
     setIsOpen(false);
     
-    // Reset form
     setTitle("");
     setLocation("");
     setSelectedDays({});
