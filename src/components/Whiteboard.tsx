@@ -90,33 +90,44 @@ const Whiteboard = () => {
 
   // Effect to center view on mount
   useEffect(() => {
-    // Define the centering function (could be extracted)
+    let retryCount = 0;
+    const MAX_RETRIES = 10;
+    let timeoutId: NodeJS.Timeout;
+
+    // Define the centering function
     const centerOnLoad = () => {
       if (instanceRef) {
         const targetScale = 1;
         const targetX = whiteboardContentWidth / 2;
         const targetY = whiteboardContentHeight / 2;
         const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight - APP_HEADER_HEIGHT; // Now accessible
+        const viewportHeight = window.innerHeight - APP_HEADER_HEIGHT;
         const viewportCenterX = viewportWidth / 2;
         const viewportCenterY = viewportHeight / 2;
         const targetPositionX = viewportCenterX - (targetX * targetScale);
         const targetPositionY = viewportCenterY - (targetY * targetScale);
 
         console.log("Centering on load...");
-        // Set transform immediately (0 animation time)
         instanceRef.setTransform(targetPositionX, targetPositionY, targetScale, 0);
+      } else if (retryCount < MAX_RETRIES) {
+        // Only retry if we haven't exceeded max attempts
+        retryCount++;
+        console.log(`Instance ref not ready on mount, retry attempt ${retryCount}/${MAX_RETRIES}...`);
+        timeoutId = setTimeout(centerOnLoad, 100);
       } else {
-        // Instance ref might not be ready immediately on mount
-        // Retry after a short delay
-        console.log("Instance ref not ready on mount, retrying centering...");
-        setTimeout(centerOnLoad, 100); // Retry after 100ms
+        console.warn("Failed to center view after maximum retry attempts");
       }
     };
 
     centerOnLoad(); // Initial attempt
 
-  }, [instanceRef]); // Re-run if instanceRef changes (e.g., becomes available)
+    // Cleanup function to clear any pending timeout
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [instanceRef]); // Re-run if instanceRef changes
 
   return (
     <div 

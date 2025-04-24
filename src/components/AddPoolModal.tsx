@@ -30,7 +30,7 @@ const AddPoolModal = () => {
       .map(([day]) => day as DayOfWeek);
     
     if (days.length === 0) return;
-
+    
     addPool(title.trim(), location.trim(), days);
     
     setIsOpen(false);
