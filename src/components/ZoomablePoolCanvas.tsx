@@ -62,9 +62,6 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
   );
   // --- End Sorting --- 
 
-  // Create a Set for efficient lookup of selected days from the prop
-  const selectedDaysSetProp = new Set(pool.days.map(pd => pd.day));
-
   // Define default hours directly in the component or import from constants
   const startHour = pool.startHour ?? DEFAULT_START_HOUR;
   const endHour = pool.endHour ?? DEFAULT_END_HOUR;
@@ -76,7 +73,6 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
   const stageContentHeight = hoursToShow * GRID_HOUR_HEIGHT;
   
   // Calculate the height for the visible canvas wrapper div
-  // It should match the stage content height unless there are other elements inside
   const canvasWrapperHeight = stageContentHeight;
 
   // Calculate the total component height (including the header)
@@ -101,15 +97,6 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
       setSelectedDaysLocal(prev => prev.filter(d => d !== day));
     }
   };
-
-  // Helper to get column X based on the *absolute index* in DAYS_OF_WEEK
-  const getColumnXByIndex = (index: number): number => {
-    return DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
-  };
-
-  // Calculate the total number of selected days for dynamic width calculation if needed elsewhere
-  // const selectedDayCount = pool.days.length;
-  // const calculatedWidth = HOUR_LABEL_WIDTH + (selectedDayCount * DAY_COLUMN_WIDTH);
 
   return (
     <div className="flex flex-col bg-white border rounded-lg shadow-md overflow-hidden" 
@@ -268,59 +255,43 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                 );
             })}
 
-            {/* Day Columns - adjust height */}
-            {DAYS_OF_WEEK.map((dayOfWeek, index) => {
-              const isSelected = selectedDaysSetProp.has(dayOfWeek);
-              const columnX = getColumnXByIndex(index);
-              // Render the column structure but control visibility/opacity
+            {/* Day Columns - Loop over sortedPoolDays */}
+            {sortedPoolDays.map((poolDay, index) => {
+              const dayOfWeek = poolDay.day;
+              // Calculate X based on index within sortedPoolDays
+              const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
               return (
                 <Group
                   key={`day-column-${dayOfWeek}`}
                   x={columnX}
-                  y={startHour * GRID_HOUR_HEIGHT}
-                  // Hide unselected columns visually OR use opacity
-                  visible={isSelected} 
-                  // opacity={isSelected ? 1 : 0.2} 
-                  listening={isSelected} // Only allow drops on selected days
-                  id={`pool-${pool.id}-day-${dayOfWeek}`} // ID for drop detection
-                  // Optional: Clip the group if needed, though Stage offset handles drawing
-                  // clipY={startHour * GRID_HOUR_HEIGHT}
-                  // clipHeight={stageContentHeight}
+                  // y position is handled by Stage offsetY
+                  // Remove visible prop
+                  listening={true} // Always listening if rendered
+                  id={`pool-${pool.id}-day-${dayOfWeek}`} 
                 >
-                  {/* Vertical Divider Line - adjust height */}
+                  {/* Vertical Divider Line */}
                   <Rect x={0} y={startHour * GRID_HOUR_HEIGHT} width={1} height={stageContentHeight} fill="#e5e7eb" listening={false} />
-                  {/* Day Header Text - Position remains relative to group */}
+                  {/* Day Header Text */}
                   <Text
                     text={dayOfWeek}
                     x={0} 
-                    y={5} 
+                    y={(startHour * GRID_HOUR_HEIGHT) + 5} // Position relative to top of visible stage
                     fontSize={14}
-                    fill={isSelected ? "#374151" : "#9ca3af"} 
+                    fill={"#374151"} // Always show as active if rendered
                     width={DAY_COLUMN_WIDTH}
                     align="center"
                     padding={5}
                     listening={false}
                   />
-                   {/* Droppable Area Rectangle (Optional: for better visual feedback or specific drop zone) */}
-                   {/* 
-                   <Rect 
-                     x={1} 
-                     y={0} 
-                     width={DAY_COLUMN_WIDTH - 1} 
-                     height={CANVAS_HEIGHT} 
-                     fill="rgba(0,0,255,0.0)" // Transparent 
-                     // Add drop handling logic here if needed per-day
-                   /> 
-                   */}
                 </Group>
               );
             })}
             {/* End Day Columns */}
 
-            {/* Course Blocks - Positions are relative to Stage, offset handles visibility */}
-            {sortedPoolDays.map((poolDay) => {
-              const dayIndex = DAYS_OF_WEEK.indexOf(poolDay.day);
-              const blockX = getColumnXByIndex(dayIndex); // Position based on absolute index
+            {/* Course Blocks - Calculate blockX based on sorted index */}
+            {sortedPoolDays.map((poolDay, index) => {
+              // const dayIndex = DAYS_OF_WEEK.indexOf(poolDay.day); // No longer needed
+              const blockX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH); // Position based on sorted index
               const sessions = getSessionsForPoolDay(pool.id, poolDay.day);
               return sessions.map((session) => (
                 <Group key={session.id} x={blockX} y={session.start}>
