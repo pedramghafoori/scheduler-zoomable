@@ -12,6 +12,8 @@ interface ScheduleState {
   // Actions
   addPool: (title: string, location: string, days: DayOfWeek[]) => void;
   removePool: (poolId: string) => void;
+  updatePoolDays: (poolId: string, selectedDays: DayOfWeek[]) => void;
+  updatePoolPosition: (poolId: string, x: number, y: number) => void;
   reorderPools: (activeId: string, overId: string) => void;
   addCourse: (title: string, totalHours: number) => void;
   createSession: (courseId: string, poolId: string, day: DayOfWeek, start: number, end: number) => string;
@@ -81,6 +83,8 @@ export const useScheduleStore = create<ScheduleState>()(
               title,
               location,
               days: poolDays,
+              x: (state.pools.length % 3) * 850 + 50,
+              y: Math.floor(state.pools.length / 3) * 500 + 50,
             },
           ],
         }));
@@ -90,6 +94,30 @@ export const useScheduleStore = create<ScheduleState>()(
         set((state) => ({
           pools: state.pools.filter((pool) => pool.id !== poolId),
           sessions: state.sessions.filter((session) => session.poolId !== poolId),
+        }));
+      },
+
+      updatePoolDays: (poolId, selectedDays) => {
+        set((state) => ({
+          pools: state.pools.map((pool) => {
+            if (pool.id === poolId) {
+              const newPoolDays: PoolDay[] = selectedDays.map(day => ({
+                id: nanoid(),
+                poolId: poolId,
+                day: day
+              }));
+              return { ...pool, days: newPoolDays };
+            }
+            return pool;
+          }),
+        }));
+      },
+
+      updatePoolPosition: (poolId, x, y) => {
+        set((state) => ({
+          pools: state.pools.map((pool) =>
+            pool.id === poolId ? { ...pool, x: x, y: y } : pool
+          ),
         }));
       },
 

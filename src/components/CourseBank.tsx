@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useScheduleStore } from "@/stores/scheduleStore";
 import { useDroppable } from "@dnd-kit/core";
 import CourseBlock from "./CourseBlock";
+import DraggableCourseBlock from "./DraggableCourseBlock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -58,13 +59,7 @@ const CourseBank = () => {
               </div>
               
               {remainingBlocks > 0 && (
-                <div>
-                  <CourseBlock 
-                    key={course.id}
-                    courseId={course.id}
-                    index={0}
-                  />
-                </div>
+                <DraggableCourseBlock course={course} />
               )}
               
               {remainingBlocks === 0 && (

@@ -5,6 +5,8 @@ export interface Pool {
   title: string;
   location: string;
   days: PoolDay[];
+  x?: number;
+  y?: number;
 }
 
 export interface PoolDay {
