@@ -4,13 +4,57 @@ import { nanoid } from "nanoid";
 import { Course, DayOfWeek, Pool, PoolDay, Session } from "@/lib/types";
 import { COURSE_COLORS, DAYS_OF_WEEK } from "@/lib/constants";
 
+// --- Constants for Dimensions and Placement --- 
+const WHITEBOARD_CONTENT_WIDTH = 20000;
+const WHITEBOARD_CONTENT_HEIGHT = 20000;
+const DAY_COLUMN_WIDTH = 200;
+const HOUR_LABEL_WIDTH = 60;
+const GRID_HOUR_HEIGHT = 60;
+const POOL_HEADER_HEIGHT_APPROX = 40;
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 18;
+const PLACEMENT_OFFSET = 30; // Offset for overlapping pools
+
+// --- Helper Functions --- 
+const calculatePoolDimensions = (pool: Pool | { days: DayOfWeek[], startHour?: number, endHour?: number }) => {
+  // Width calculation
+  const width = HOUR_LABEL_WIDTH + (pool.days.length * DAY_COLUMN_WIDTH);
+  const minWidth = HOUR_LABEL_WIDTH + 50;
+  const finalWidth = pool.days.length > 0 ? width : minWidth;
+  
+  // Height calculation
+  const startHour = pool.startHour ?? DEFAULT_START_HOUR;
+  const endHour = pool.endHour ?? DEFAULT_END_HOUR;
+  const hoursToShow = Math.max(1, endHour - startHour);
+  const stageContentHeight = hoursToShow * GRID_HOUR_HEIGHT;
+  const finalHeight = stageContentHeight + POOL_HEADER_HEIGHT_APPROX;
+  
+  return { width: finalWidth, height: finalHeight };
+};
+
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const checkOverlap = (rect1: Rect, rect2: Rect): boolean => {
+  return (
+    rect1.x < rect2.x + rect2.width &&
+    rect1.x + rect1.width > rect2.x &&
+    rect1.y < rect2.y + rect2.height &&
+    rect1.y + rect1.height > rect2.y
+  );
+};
+
 interface ScheduleState {
   pools: Pool[];
   courses: Course[];
   sessions: Session[];
   
   // Actions
-  addPool: (title: string, location: string, days: DayOfWeek[], x?: number, y?: number) => void;
+  addPool: (title: string, location: string, days: DayOfWeek[]) => void;
   removePool: (poolId: string) => void;
   updatePoolDays: (poolId: string, selectedDays: DayOfWeek[]) => void;
   updatePoolPosition: (poolId: string, x: number, y: number) => void;
@@ -30,10 +74,6 @@ interface ScheduleState {
   getPool: (poolId: string) => Pool | undefined;
 }
 
-// Sensible defaults (e.g., 8 AM to 6 PM)
-const DEFAULT_START_HOUR = 8;
-const DEFAULT_END_HOUR = 18;
-
 const INITIAL_POOLS: Pool[] = [
   {
     id: "pool-1",
@@ -41,6 +81,8 @@ const INITIAL_POOLS: Pool[] = [
     location: "Building A",
     startHour: DEFAULT_START_HOUR,
     endHour: DEFAULT_END_HOUR,
+    x: WHITEBOARD_CONTENT_WIDTH / 2 - 400, // Place near center
+    y: WHITEBOARD_CONTENT_HEIGHT / 2 - 200,
     days: [
       { id: "poolday-1", poolId: "pool-1", day: "Monday" as DayOfWeek },
       { id: "poolday-2", poolId: "pool-1", day: "Wednesday" as DayOfWeek },
@@ -51,8 +93,10 @@ const INITIAL_POOLS: Pool[] = [
     id: "pool-2",
     title: "Training Pool",
     location: "Building B",
-    startHour: 7, // Example different hours
+    startHour: 7, 
     endHour: 20,
+    x: WHITEBOARD_CONTENT_WIDTH / 2 + 400, // Place near center, different spot
+    y: WHITEBOARD_CONTENT_HEIGHT / 2 - 200,
     days: [
       { id: "poolday-4", poolId: "pool-2", day: "Tuesday" as DayOfWeek },
       { id: "poolday-5", poolId: "pool-2", day: "Thursday" as DayOfWeek },
@@ -76,13 +120,59 @@ export const useScheduleStore = create<ScheduleState>()(
       courses: INITIAL_COURSES,
       sessions: [],
 
-      addPool: (title, location, days, x, y) => {
+      addPool: (title, location, days) => {
         const newPoolId = nanoid();
         const poolDays = days.map((day) => ({
           id: nanoid(),
           poolId: newPoolId,
           day,
         }));
+
+        let targetX = WHITEBOARD_CONTENT_WIDTH / 2;
+        let targetY = WHITEBOARD_CONTENT_HEIGHT / 2;
+
+        // Calculate dimensions of the potential new pool
+        const { width: newPoolWidth, height: newPoolHeight } = calculatePoolDimensions({
+          days: days, // Pass the selected days
+          startHour: DEFAULT_START_HOUR, // Use defaults for calculation
+          endHour: DEFAULT_END_HOUR
+        });
+        
+        const newPoolRect: Rect = { 
+          x: targetX - newPoolWidth / 2, // Center the rect 
+          y: targetY - newPoolHeight / 2, 
+          width: newPoolWidth, 
+          height: newPoolHeight 
+        };
+
+        const existingPools = get().pools;
+        let positionAdjusted = false;
+
+        for (const existingPool of existingPools) {
+          const { width: existingWidth, height: existingHeight } = calculatePoolDimensions(existingPool);
+          const existingPoolRect: Rect = {
+            x: existingPool.x ?? 0,
+            y: existingPool.y ?? 0,
+            width: existingWidth,
+            height: existingHeight
+          };
+
+          // Adjust new pool's target rect for centering before overlap check
+          const centeredNewPoolRect: Rect = { ...newPoolRect, x: targetX - newPoolWidth / 2, y: targetY - newPoolHeight / 2 };
+
+          if (checkOverlap(centeredNewPoolRect, existingPoolRect)) {
+            console.log(`New pool target center overlaps with pool ${existingPool.id}. Adjusting position.`);
+            // Offset diagonally from the overlapping pool
+            targetX = existingPoolRect.x + existingWidth + PLACEMENT_OFFSET; 
+            targetY = existingPoolRect.y + PLACEMENT_OFFSET;
+            positionAdjusted = true;
+            break; // Adjust based on the first overlap found
+          }
+        }
+        
+        // Correct final position calculation
+        const finalX = positionAdjusted ? targetX : (targetX - newPoolWidth / 2);
+        const finalY = positionAdjusted ? targetY : (targetY - newPoolHeight / 2);
 
         set((state) => ({
           pools: [
@@ -94,8 +184,8 @@ export const useScheduleStore = create<ScheduleState>()(
               days: poolDays,
               startHour: DEFAULT_START_HOUR,
               endHour: DEFAULT_END_HOUR,
-              x: x ?? 50,
-              y: y ?? 50,
+              x: finalX,
+              y: finalY,
             },
           ],
         }));
