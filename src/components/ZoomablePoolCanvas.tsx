@@ -7,6 +7,7 @@ import { format } from "date-fns"; // For formatting hour labels
 import { DraggableSyntheticListeners, DraggableAttributes } from '@dnd-kit/core'; // Import this
 import { Input } from "@/components/ui/input"; // Import Input
 import { useDroppable } from "@dnd-kit/core"; // Import useDroppable
+import CourseBlock from "@/components/CourseBlock"; // Add CourseBlock import
 
 // Import shadcn components
 import {
@@ -207,7 +208,7 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
 
       {/* Canvas Area Wrapper */} 
       <div 
-        className="relative rounded-b-lg flex-grow" // Keep relative for positioning drop zones
+        className="relative rounded-b-lg flex-grow"
         style={{ height: `${canvasWrapperHeight}px` }}
       >
         {/* Konva Stage - Render visual grid */}
@@ -216,11 +217,11 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
           width={dynamicWidth} 
           height={stageContentHeight} 
           offsetY={startHour * GRID_HOUR_HEIGHT} 
-          className="bg-white absolute top-0 left-0 pointer-events-none" // Make stage non-interactive visually
-          listening={false} // Disable Konva listening
+          className="bg-white absolute top-0 left-0 pointer-events-none" 
+          listening={false}
         >
           <Layer>
-            {/* Hour Labels Area - adjust count and position */}
+            {/* Hour Labels Area */}
             <Rect x={0} y={startHour * GRID_HOUR_HEIGHT} width={HOUR_LABEL_WIDTH} height={stageContentHeight} fill="#f9fafb" />
             {Array.from({ length: hoursToShow }).map((_, i) => {
               const hour = startHour + i;
@@ -228,7 +229,7 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                  <Text
                     key={`hour-label-${hour}`}
                     x={5}
-                    y={(hour * GRID_HOUR_HEIGHT) + 5} // Position based on actual hour
+                    y={(hour * GRID_HOUR_HEIGHT) + 5}
                     text={format(new Date(0, 0, 0, hour), "ha")}
                     fontSize={10}
                     fill="#6b7280"
@@ -239,14 +240,14 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
               );
             })}
 
-            {/* Dotted Hour Lines - adjust count and position */}
+            {/* Grid Lines */}
             {Array.from({ length: hoursToShow + 1 }).map((_, i) => {
                const hour = startHour + i;
                return (
                   <Rect
                      key={`hour-line-${hour}`}
                      x={HOUR_LABEL_WIDTH}
-                     y={hour * GRID_HOUR_HEIGHT} // Position based on actual hour
+                     y={hour * GRID_HOUR_HEIGHT}
                      width={dynamicWidth - HOUR_LABEL_WIDTH}
                      height={1}
                      fill="#e5e7eb"
@@ -256,29 +257,19 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                 );
             })}
 
-            {/* Day Columns - Loop over sortedPoolDays */}
+            {/* Day Columns */}
             {sortedPoolDays.map((poolDay, index) => {
               const dayOfWeek = poolDay.day;
-              // Calculate X based on index within sortedPoolDays
               const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
               return (
-                <Group
-                  key={`day-column-${dayOfWeek}`}
-                  x={columnX}
-                  // y position is handled by Stage offsetY
-                  // Remove visible prop
-                  listening={true} // Always listening if rendered
-                  id={`pool-${pool.id}-day-${dayOfWeek}`} 
-                >
-                  {/* Vertical Divider Line */}
+                <Group key={`day-column-${dayOfWeek}`} x={columnX}>
                   <Rect x={0} y={startHour * GRID_HOUR_HEIGHT} width={1} height={stageContentHeight} fill="#e5e7eb" listening={false} />
-                  {/* Day Header Text */}
                   <Text
                     text={dayOfWeek}
                     x={0} 
-                    y={(startHour * GRID_HOUR_HEIGHT) + 5} // Position relative to top of visible stage
+                    y={(startHour * GRID_HOUR_HEIGHT) + 5}
                     fontSize={14}
-                    fill={"#374151"} // Always show as active if rendered
+                    fill={"#374151"}
                     width={DAY_COLUMN_WIDTH}
                     align="center"
                     padding={5}
@@ -287,60 +278,25 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                 </Group>
               );
             })}
-            {/* End Day Columns */}
-
-            {/* Course Blocks - Calculate blockX based on sorted index */}
-            {sortedPoolDays.map((poolDay, index) => {
-              const blockX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
-              const sessions = getSessionsForPoolDay(pool.id, poolDay.day);
-              return sessions.map((session) => {
-                const course = getCourse(session.courseId);
-                if (!course) return null;
-                
-                return (
-                  <Group key={session.id} x={blockX} y={session.start}>
-                    <Rect
-                      width={DAY_COLUMN_WIDTH}
-                      height={session.end - session.start}
-                      fill={course.color || "#4f46e5"}
-                      opacity={0.8}
-                      cornerRadius={5}
-                    />
-                    <Text
-                      text={course.title}
-                      x={10}
-                      y={10}
-                      fill="white"
-                      fontSize={12}
-                      width={DAY_COLUMN_WIDTH - 20}
-                      wrap="char"
-                      ellipsis={true}
-                    />
-                  </Group>
-                );
-              });
-            })}
-            {/* End Course Blocks */}
           </Layer>
         </Stage>
 
-        {/* HTML Overlay for Drop Zones & Interaction */}
+        {/* HTML Overlay for Drop Zones & Course Blocks */}
         <div 
-          className="absolute top-0 left-0 w-full h-full overflow-auto" // Container for drop zones, handles scroll
+          className="absolute top-0 left-0 w-full h-full overflow-auto"
           style={{ height: `${canvasWrapperHeight}px` }}
         >
            <div 
-             className="relative" // Inner container matches Konva stage size
+             className="relative"
              style={{ width: `${dynamicWidth}px`, height: `${stageContentHeight}px` }}
             >
-               {/* Create droppable div for each visible day column */}
+               {/* Drop Zones */}
                {sortedPoolDays.map((poolDay, index) => {
                  const dayOfWeek = poolDay.day;
                  const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
                  
-                 // Set up droppable for this column
                  const { setNodeRef, isOver } = useDroppable({
-                    id: `pool-${pool.id}-day-${dayOfWeek}`, // Unique ID matching handleDragEnd expectations
+                    id: `pool-${pool.id}-day-${dayOfWeek}`,
                     data: {
                        type: 'pool-day',
                        poolId: pool.id,
@@ -348,23 +304,40 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                      }
                  });
 
+                 const sessions = getSessionsForPoolDay(pool.id, dayOfWeek);
+
                  return (
                    <div
                      key={`drop-zone-${dayOfWeek}`}
                      ref={setNodeRef}
-                     className={`absolute top-0 h-full ${isOver ? 'bg-blue-100 bg-opacity-30' : ''}`}
+                     data-droppable="true"
+                     className={`absolute ${isOver ? 'bg-blue-100 bg-opacity-30' : ''}`}
                      style={{
                        left: `${columnX}px`,
                        width: `${DAY_COLUMN_WIDTH}px`,
-                       top: `${startHour * GRID_HOUR_HEIGHT}px`, // Position based on start hour
+                       top: `${(startHour * GRID_HOUR_HEIGHT)}px`,
                        height: `${stageContentHeight}px`,
-                       zIndex: 5 // Above Konva stage but below dragged items
+                       zIndex: 5,
+                       position: 'absolute',
                      }}
-                     title={`Drop area for ${dayOfWeek}`}
-                   />
+                   >
+                     {/* Course Blocks Container */}
+                     <div 
+                       className="relative h-full w-full"
+                       onPointerDown={(e) => e.stopPropagation()}
+                     >
+                       {sessions.map((session) => (
+                         <CourseBlock
+                           key={session.id}
+                           courseId={session.courseId}
+                           session={session}
+                           isGrid={true}
+                         />
+                       ))}
+                     </div>
+                   </div>
                  );
                })}
-                {/* Potential place to render HTML versions of sessions if needed for grid->grid drag later */}
            </div>
         </div>
       </div>
