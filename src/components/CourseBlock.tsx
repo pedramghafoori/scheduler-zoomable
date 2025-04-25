@@ -24,6 +24,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       attributes: dragAttributes,
       listeners: dragListeners,
       setNodeRef: setDragNodeRef,
+      isDragging,
     } = useDraggable({
       id: isGrid ? `grid-course-${session?.id}` : `bank-course-${courseId}`,
       data: {
@@ -47,9 +48,10 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       left: '4px',
       backgroundColor: course.color || '#4f46e5',
       color: getContrastText(course.color || '#4f46e5'),
-      zIndex: 1,
+      zIndex: isDragging ? 1000 : 10,
       cursor: 'grab',
       touchAction: 'none',
+      userSelect: 'none' as const,
     } : {};
     
     const bankStyle = !isGrid ? {
@@ -57,20 +59,21 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       color: getContrastText(course.color || '#4f46e5'),
       height: '60px',
       marginBottom: '8px',
-      zIndex: 1,
+      zIndex: isDragging ? 1000 : 10,
       cursor: 'grab',
       touchAction: 'none',
+      userSelect: 'none' as const,
     } : {};
 
     const onResizeMouseDown = (e: React.MouseEvent) => {
       e.stopPropagation();
-      e.preventDefault();
       if (!session) return;
       setIsResizing(true);
       const startY = e.clientY;
       const startEnd = session.end;
 
       const move = (me: MouseEvent) => {
+        me.stopPropagation();
         const delta = me.clientY - startY;
         const tentative = startEnd + delta;
         const snapped = yPosToTime(snapToGrid(tentative));
@@ -79,7 +82,8 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
         }
       };
 
-      const up = () => {
+      const up = (me: MouseEvent) => {
+        me.stopPropagation();
         setIsResizing(false);
         window.removeEventListener("mousemove", move);
         window.removeEventListener("mouseup", up);
@@ -89,15 +93,27 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       window.addEventListener("mouseup", up);
     };
 
+    const handlePointerDown = (e: React.PointerEvent) => {
+      e.stopPropagation();
+      dragListeners?.onPointerDown?.(e);
+    };
+
     return (
       <div
         ref={setDragNodeRef}
         {...dragAttributes}
         {...dragListeners}
-        className={`course-block-wrapper ${isGrid ? "absolute" : "relative"} rounded-md`}
-        style={{ ...gridStyle, ...bankStyle }}
+        className={`course-block-wrapper ${isGrid ? "absolute" : "relative"} rounded-md select-none`}
+        style={{ 
+          ...gridStyle, 
+          ...bankStyle,
+          transform: isDragging ? 'scale(1.05)' : undefined,
+          opacity: isDragging ? 0.8 : 1,
+          transition: 'transform 0.2s, opacity 0.2s',
+          cursor: isResizing ? 'ns-resize' : 'grab',
+        }}
       >
-        <div
+        <div 
           className={`course-block-body p-2 h-full flex flex-col`}
         >
           <div className="font-medium truncate">{course.title}</div>
@@ -110,14 +126,22 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
         {isGrid && session && !isResizing && (
           <div
             className="absolute bottom-0 left-0 right-0 h-2 bg-black bg-opacity-20 cursor-ns-resize select-none hover:bg-opacity-30 transition-colors"
-            onMouseDown={onResizeMouseDown}
-            style={{ pointerEvents: 'auto' }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onResizeMouseDown(e);
+            }}
           />
         )}
         {!isGrid && (
           <div 
             className="absolute top-1 right-1 z-20 cursor-pointer p-0.5 bg-black bg-opacity-30 rounded-full leading-none"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               scheduleStore.removeCourse(courseId);
             }}

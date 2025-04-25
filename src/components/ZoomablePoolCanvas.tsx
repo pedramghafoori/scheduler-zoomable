@@ -36,7 +36,7 @@ const HOUR_LABEL_WIDTH = 60;
 const DAY_COLUMN_START = HOUR_LABEL_WIDTH;
 const POOL_HEADER_HEIGHT_APPROX = 40; // Approximate height of the header div above the canvas
 const DEFAULT_START_HOUR = 8;
-const DEFAULT_END_HOUR = 18;
+const DEFAULT_END_HOUR = 22;
 
 const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes }: ZoomablePoolCanvasProps) => {
   // Store hooks
@@ -71,11 +71,11 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
   // Calculate the number of hours to display
   const hoursToShow = Math.max(1, endHour - startHour);
   
-  // Calculate the required height for the Konva Stage content
-  const stageContentHeight = hoursToShow * GRID_HOUR_HEIGHT;
-  
-  // Calculate the height for the visible canvas wrapper div
-  const canvasWrapperHeight = stageContentHeight;
+  // Konva Stage should have the full 24-hour height
+  const stageInternalHeight = CANVAS_HEIGHT;
+
+  // Calculate the height for the visible canvas wrapper div based on hours to show
+  const canvasWrapperHeight = hoursToShow * GRID_HOUR_HEIGHT;
 
   // Calculate the total component height (including the header)
   const totalComponentHeight = canvasWrapperHeight + POOL_HEADER_HEIGHT_APPROX;
@@ -209,27 +209,29 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
       {/* Canvas Area Wrapper */} 
       <div 
         className="relative rounded-b-lg flex-grow"
-        style={{ height: `${canvasWrapperHeight}px` }}
+        style={{ height: `${canvasWrapperHeight}px` }} // This wrapper controls the *visible* height
       >
-        {/* Konva Stage - Render visual grid */}
+        {/* Konva Stage - Use full internal height, offset handles visibility */}
         <Stage
           key={`stage-${pool.id}-visuals`}
-          width={dynamicWidth} 
-          height={stageContentHeight} 
-          offsetY={startHour * GRID_HOUR_HEIGHT} 
-          className="bg-white absolute top-0 left-0 pointer-events-none" 
+          width={dynamicWidth}
+          height={stageInternalHeight} // Use full 24h height here
+          offsetY={startHour * GRID_HOUR_HEIGHT}
+          className="bg-white absolute top-0 left-0 pointer-events-none"
           listening={false}
         >
           <Layer>
-            {/* Hour Labels Area */}
-            <Rect x={0} y={startHour * GRID_HOUR_HEIGHT} width={HOUR_LABEL_WIDTH} height={stageContentHeight} fill="#f9fafb" />
-            {Array.from({ length: hoursToShow }).map((_, i) => {
-              const hour = startHour + i;
+            {/* Hour Labels Area - Background to match visible area height */}
+            <Rect x={0} y={startHour * GRID_HOUR_HEIGHT} width={HOUR_LABEL_WIDTH} height={canvasWrapperHeight} fill="#f9fafb" />
+
+            {/* Hour Labels - Iterate through all 24 hours, no filtering needed */}
+            {Array.from({ length: 24 }).map((_, i) => {
+              const hour = i; // Hour from 0 to 23
               return (
                  <Text
                     key={`hour-label-${hour}`}
                     x={5}
-                    y={(hour * GRID_HOUR_HEIGHT) + 5}
+                    y={(hour * GRID_HOUR_HEIGHT) + 5} // Position based on 24h scale
                     text={format(new Date(0, 0, 0, hour), "ha")}
                     fontSize={10}
                     fill="#6b7280"
@@ -240,14 +242,14 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
               );
             })}
 
-            {/* Grid Lines */}
-            {Array.from({ length: hoursToShow + 1 }).map((_, i) => {
-               const hour = startHour + i;
+            {/* Grid Lines - Iterate through all 24 hours + 1, no filtering needed */}
+            {Array.from({ length: 25 }).map((_, i) => {
+               const hour = i; // Hour from 0 to 24
                return (
                   <Rect
                      key={`hour-line-${hour}`}
                      x={HOUR_LABEL_WIDTH}
-                     y={hour * GRID_HOUR_HEIGHT}
+                     y={hour * GRID_HOUR_HEIGHT} // Position based on 24h scale
                      width={dynamicWidth - HOUR_LABEL_WIDTH}
                      height={1}
                      fill="#e5e7eb"
@@ -263,11 +265,13 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
               const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
               return (
                 <Group key={`day-column-${dayOfWeek}`} x={columnX}>
-                  <Rect x={0} y={startHour * GRID_HOUR_HEIGHT} width={1} height={stageContentHeight} fill="#e5e7eb" listening={false} />
+                  {/* Day Column Vertical Line - Use full internal height */}
+                  <Rect x={0} y={0} width={1} height={stageInternalHeight} fill="#e5e7eb" listening={false} />
+                  {/* Day Label Text - Positioned relative to startHour within the visible offset */}
                   <Text
                     text={dayOfWeek}
-                    x={0} 
-                    y={(startHour * GRID_HOUR_HEIGHT) + 5}
+                    x={0}
+                    y={(startHour * GRID_HOUR_HEIGHT) + 5} // Position label relative to current view top
                     fontSize={14}
                     fill={"#374151"}
                     width={DAY_COLUMN_WIDTH}
@@ -282,25 +286,32 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
         </Stage>
 
         {/* HTML Overlay for Drop Zones & Course Blocks */}
-        <div 
-          className="absolute top-0 left-0 w-full h-full overflow-auto"
-          style={{ height: `${canvasWrapperHeight}px` }}
+        <div
+          className="absolute top-0 left-0 w-full h-full"
+          // This overlay needs to match the Stage's internal height for correct absolute positioning
+          style={{ height: `${stageInternalHeight}px` }}
         >
-           <div 
+           <div
              className="relative"
-             style={{ width: `${dynamicWidth}px`, height: `${stageContentHeight}px` }}
+             // This inner div also needs the full internal height
+             style={{ width: `${dynamicWidth}px`, height: `${stageInternalHeight}px` }}
             >
-               {/* Drop Zones */}
+               {/* Create droppable div for each visible day column */}
                {sortedPoolDays.map((poolDay, index) => {
                  const dayOfWeek = poolDay.day;
                  const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
                  
+                 // Set up droppable for this column
                  const { setNodeRef, isOver } = useDroppable({
                     id: `pool-${pool.id}-day-${dayOfWeek}`,
                     data: {
                        type: 'pool-day',
                        poolId: pool.id,
                        day: dayOfWeek,
+                       columnX,
+                       startHour,
+                       endHour,
+                       gridHourHeight: GRID_HOUR_HEIGHT
                      }
                  });
 
@@ -310,22 +321,18 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                    <div
                      key={`drop-zone-${dayOfWeek}`}
                      ref={setNodeRef}
-                     data-droppable="true"
                      className={`absolute ${isOver ? 'bg-blue-100 bg-opacity-30' : ''}`}
                      style={{
                        left: `${columnX}px`,
                        width: `${DAY_COLUMN_WIDTH}px`,
-                       top: `${(startHour * GRID_HOUR_HEIGHT)}px`,
-                       height: `${stageContentHeight}px`,
+                       top: `${(startHour * GRID_HOUR_HEIGHT)}px`, // Position based on startHour offset
+                       height: `${canvasWrapperHeight}px`, // Droppable area height matches visible area
                        zIndex: 5,
                        position: 'absolute',
                      }}
                    >
                      {/* Course Blocks Container */}
-                     <div 
-                       className="relative h-full w-full"
-                       onPointerDown={(e) => e.stopPropagation()}
-                     >
+                     <div className="relative h-full w-full">
                        {sessions.map((session) => (
                          <CourseBlock
                            key={session.id}

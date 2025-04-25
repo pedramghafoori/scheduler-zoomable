@@ -79,6 +79,14 @@ const Index = () => {
     }
     // --- Course Movement Logic --- 
     else if ((activeType === 'course' || activeType === 'grid-course') && over) {
+      console.log("Processing course drop:", {
+        activeType,
+        course,
+        session,
+        overId,
+        overRect: over.rect
+      });
+
       // Handle drops on pool day columns or pool canvas
       if (overId.startsWith('pool-')) {
         let poolId: string;
@@ -89,10 +97,12 @@ const Index = () => {
           const parts = overId.split('-day-');
           poolId = parts[0].replace('pool-','');
           day = parts[1] as DayOfWeek;
+          console.log("Dropped on day column:", { poolId, day });
         } else {
           // Dropped on pool canvas - default to Monday
           poolId = overId.replace('pool-', '');
           day = 'Monday';
+          console.log("Dropped on pool canvas:", { poolId, day });
         }
         
         const targetPool = getPool(poolId);
@@ -100,6 +110,7 @@ const Index = () => {
           console.error("Target pool not found for ID:", poolId);
           return;
         }
+        console.log("Found target pool:", targetPool);
 
         // Calculate time based on drop position
         const startHour = targetPool.startHour ?? 8;
@@ -115,13 +126,35 @@ const Index = () => {
             Math.round(minutesFromMidnight / 30) * 30
           )
         );
+
+        console.log("Time calculation:", {
+          startHour,
+          dropPoint,
+          containerTop,
+          minutesFromMidnight,
+          startMinutes
+        });
         
         if (activeType === 'course' && course) {
           // New course from bank
+          console.log("Creating new session:", {
+            courseId: course.id,
+            poolId,
+            day,
+            startMinutes,
+            endMinutes: startMinutes + 60
+          });
           createSession(course.id, poolId, day, startMinutes, startMinutes + 60);
         } else if (activeType === 'grid-course' && session) {
           // Moving existing course
           const duration = session.end - session.start;
+          console.log("Moving existing session:", {
+            sessionId: session.id,
+            poolId,
+            day,
+            startMinutes,
+            endMinutes: startMinutes + duration
+          });
           updateSession(session.id, {
             poolId,
             day,
