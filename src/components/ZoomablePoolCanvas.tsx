@@ -311,6 +311,9 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                 },
               });
 
+              // Get sessions for this pool and day
+              const sessions = getSessionsForPoolDay(pool.id, dayOfWeek);
+
               return (
                 <div
                   key={`droppable-${dayOfWeek}`}
@@ -326,22 +329,35 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                     pointerEvents: 'auto',
                   }}
                 >
-                  {/* Render existing course blocks for this day */}
-                  {pool.courses?.filter(course => course.day === dayOfWeek)
-                    .map(course => (
-                      <div
-                        key={course.id}
-                        className="absolute bg-blue-100 border border-blue-300 rounded p-1 text-xs"
-                        style={{
-                          top: `${(course.startTime - startHour) * GRID_HOUR_HEIGHT}px`,
-                          left: '0',
-                          width: '100%',
-                          height: `${(course.endTime - course.startTime) * GRID_HOUR_HEIGHT}px`,
-                        }}
-                      >
-                        {course.name}
-                      </div>
-                    ))}
+                  {/* Render sessions for this day using CourseBlock */}
+                  {sessions.map(session => {
+                    // No need to get the course explicitly here if CourseBlock handles it
+                    // const course = getCourse(session.courseId);
+                    // if (!course) return null; 
+                    
+                    // Ensure the session times are valid numbers before rendering
+                    if (typeof session.start !== 'number' || typeof session.end !== 'number') {
+                      console.warn("Skipping rendering session with invalid time:", session);
+                      return null;
+                    }
+
+                    return (
+                      <CourseBlock
+                        key={session.id}
+                        session={session}
+                        courseId={session.courseId}
+                        isGrid={true} // Indicate it's on the grid
+                        // We might not need style prop if CourseBlock handles positioning internally
+                        // style={{
+                        //   position: 'absolute', // Ensure CourseBlock itself is positioned absolutely
+                        //   top: `${(session.start / 60 - startHour) * GRID_HOUR_HEIGHT}px`,
+                        //   left: '0',
+                        //   width: '100%',
+                        //   height: `${((session.end - session.start) / 60) * GRID_HOUR_HEIGHT}px`,
+                        // }}
+                      />
+                    );
+                  })}
                 </div>
               );
             })}
