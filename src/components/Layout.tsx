@@ -15,25 +15,33 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const { startDrag, endDrag, pointerY } = useDragStore();
-  const { createSession, updateSession, deleteSession, reorderPools } = useScheduleStore();
+  const { createSession, updateSession, deleteSession, reorderPools, getPool } = useScheduleStore();
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const { session, courseId, type, pool } = active.data.current || {};
 
-    console.log("Layout handleDragStart:", { type, courseId, session, pool });
+    console.log("=== Drag Start ===", {
+      activeId: active.id,
+      type,
+      courseId,
+      session,
+      pool
+    });
 
     if (type === "bank-block" && courseId) {
       const tempSession = {
         id: `temp-${courseId}-${Date.now()}`,
         courseId,
-        poolId: "", // indicates "in the bank"
+        poolId: "",
         day: "Monday" as DayOfWeek,
         start: 0,
         end: DEFAULT_SESSION_DURATION,
       };
+      console.log("Created temp session for bank block:", tempSession);
       startDrag(tempSession);
     } else if (type === "grid-block" && session) {
+      console.log("Starting drag of grid block:", session);
       startDrag(session);
     }
   };
@@ -41,15 +49,21 @@ const Layout = ({ children }: LayoutProps) => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    console.log("Layout handleDragEnd:", {
-      activeId: active?.id,
-      activeType: active?.data.current?.type,
-      overId: over?.id,
-      overType: over?.data.current?.type,
-      pointerY
+    console.log("=== Drag End ===");
+    console.log("Active:", {
+      id: active?.id,
+      type: active?.data.current?.type,
+      course: active?.data.current?.course,
+      session: active?.data.current?.session
+    });
+    console.log("Over:", {
+      id: over?.id,
+      type: over?.data.current?.type,
+      data: over?.data.current
     });
 
     if (!active || !over) {
+      console.log("No active or over target - ending drag");
       endDrag();
       return;
     }
@@ -59,6 +73,7 @@ const Layout = ({ children }: LayoutProps) => {
 
     // Handle pool reordering
     if (dragData?.type === "pool" && overData?.type === "pool-slot") {
+      console.log("Reordering pools:", { activeId: active.id, overId: over.id });
       reorderPools(active.id as string, over.id as string);
       endDrag();
       return;
@@ -66,6 +81,8 @@ const Layout = ({ children }: LayoutProps) => {
 
     // Handle course dragging
     if (dragData?.type === "grid-block" || dragData?.type === "bank-block") {
+      console.log("Processing course drop:", { dragType: dragData.type });
+
       // 1) Dropped onto the Course Bank → delete
       if (over.id === "course-bank" && dragData?.type === "grid-block") {
         const session = dragData.session;
@@ -74,41 +91,71 @@ const Layout = ({ children }: LayoutProps) => {
           deleteSession(session.id);
         }
       }
-      // 2) Dropped onto a pool/day column
-      else if (overData?.type === "pool-day") {
-        const { poolId, day } = overData;
-        const start = clientYToMinutes(pointerY ?? 0);
+      // 2) Dropped onto a pool day interval
+      else if (overData?.type === "pool-day-interval") {
+        const { poolId, day, startMinute } = overData;
+        console.log("Drop target info:", {
+          poolId,
+          day,
+          startMinute,
+          rawOverData: overData
+        });
 
-        if (dragData?.type === "bank-block") {
-          console.log("Creating session from bank‑block:", {
-            courseId: dragData.courseId,
+        const targetPool = getPool(poolId);
+        if (!targetPool) {
+          console.error("Target pool not found for ID:", poolId);
+          return;
+        }
+        console.log("Found target pool:", targetPool);
+
+        if (dragData?.type === "bank-block" && dragData.course) {
+          // New course from bank - create 1-hour session starting at the interval
+          console.log("Creating new session from bank:", {
+            courseId: dragData.course.id,
             poolId,
             day,
-            start,
-            end: start + DEFAULT_SESSION_DURATION
+            startMinute,
+            course: dragData.course
           });
           
-          createSession(
-            dragData.courseId,
+          const newSessionId = createSession(
+            dragData.course.id,
             poolId,
-            day,
-            start,
-            start + DEFAULT_SESSION_DURATION
+            day as DayOfWeek, // Ensure day is treated as DayOfWeek
+            startMinute,
+            startMinute + 60 // Default 1-hour duration
           );
-        } else if (dragData?.type === "grid-block") {
-          const { session } = dragData;
-          const duration = session.end - session.start;
-          console.log("Moving grid‑block", { sessionId: session.id, start });
-          updateSession(session.id, {
+          console.log("Created new session with ID:", newSessionId);
+
+        } else if (dragData?.type === "grid-block" && dragData.session) {
+          // Moving existing course - maintain its duration
+          const duration = dragData.session.end - dragData.session.start;
+          console.log("Moving existing session:", {
+            sessionId: dragData.session.id,
             poolId,
             day,
-            start,
-            end: start + duration,
+            startMinute,
+            duration,
+            newEndMinute: startMinute + duration,
+            originalSession: dragData.session
+          });
+          
+          updateSession(dragData.session.id, {
+            poolId,
+            day: day as DayOfWeek, // Ensure day is treated as DayOfWeek
+            start: startMinute,
+            end: startMinute + duration
           });
         }
       }
+      // Handle drops on whiteboard background
+      else if (over.id === "whiteboard-droppable" && dragData.course) {
+        console.log("Dropped on whiteboard background");
+        // ... existing whiteboard handling code ...
+      }
     }
 
+    console.log("=== Ending Drag ===");
     endDrag();
   };
 

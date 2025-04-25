@@ -67,6 +67,8 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
   // Define default hours directly in the component or import from constants
   const startHour = pool.startHour ?? DEFAULT_START_HOUR;
   const endHour = pool.endHour ?? DEFAULT_END_HOUR;
+  const startMinuteAbs = startHour * 60;
+  const endMinuteAbs = endHour * 60;
   
   // Calculate the number of hours to display
   const hoursToShow = Math.max(1, endHour - startHour);
@@ -76,6 +78,11 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
 
   // Calculate the height for the visible canvas wrapper div based on hours to show
   const canvasWrapperHeight = hoursToShow * GRID_HOUR_HEIGHT;
+
+  // Helper function to convert minutes to pixels
+  const minutesToPixels = (minutes: number) => {
+    return (minutes / 60) * GRID_HOUR_HEIGHT;
+  };
 
   // Calculate the total component height (including the header)
   const totalComponentHeight = canvasWrapperHeight + POOL_HEADER_HEIGHT_APPROX;
@@ -294,70 +301,107 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
             className="relative"
             style={{ width: `${dynamicWidth}px`, height: `${stageInternalHeight}px` }}
           >
-            {/* Create droppable div for each visible day column */}
-            {sortedPoolDays.map((poolDay, index) => {
-              const dayOfWeek = poolDay.day;
-              const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
+            {/* Outer container for positioning course blocks relative to the timeline */}
+            <div className="absolute top-0 left-0 w-full" style={{ height: `${stageInternalHeight}px` }}>
+              {/* Loop through days to position CourseBlocks */} 
+              {sortedPoolDays.map((poolDay, index) => {
+                const dayOfWeek = poolDay.day;
+                const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
+                const sessions = getSessionsForPoolDay(pool.id, dayOfWeek);
 
-              // Set up droppable for this column
-              const { setNodeRef, isOver } = useDroppable({
-                id: `pool-${pool.id}-day-${dayOfWeek}`,
-                data: {
-                  type: 'pool-day',
-                  poolId: pool.id,
-                  day: dayOfWeek,
-                  startHour: startHour,
-                  endHour: endHour,
-                },
+                return (
+                  <div
+                    key={`course-container-${dayOfWeek}`}
+                    className="absolute"
+                    style={{
+                      left: `${columnX}px`,
+                      width: `${DAY_COLUMN_WIDTH}px`,
+                      top: '0', // Aligns with the stage
+                      height: `${stageInternalHeight}px`,
+                      pointerEvents: 'none', // Let drop zones handle pointer events
+                    }}
+                  >
+                    {/* Render CourseBlocks absolutely positioned within this day container */} 
+                    {sessions.map(session => {
+                      if (typeof session.start !== 'number' || typeof session.end !== 'number') {
+                        console.log("Skipping session with invalid time:", session);
+                        return null;
+                      }
+
+                      // Log the position calculation
+                      console.log("Positioning course block:", {
+                        sessionId: session.id,
+                        start: session.start,
+                        startMinuteAbs,
+                        pixelOffset: minutesToPixels(session.start - startMinuteAbs),
+                        height: minutesToPixels(session.end - session.start)
+                      });
+
+                      return (
+                        <div
+                          key={session.id}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: `${minutesToPixels(session.start - startMinuteAbs)}px`,
+                            height: `${minutesToPixels(session.end - session.start)}px`,
+                            left: '0px',
+                            width: '100%',
+                            pointerEvents: 'auto',
+                            zIndex: 10,
+                          }}
+                        >
+                          <CourseBlock
+                            session={session}
+                            courseId={session.courseId}
+                            isGrid={true}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Create 15-min droppable zones for each visible day column */}
+            {sortedPoolDays.map((poolDay, dayIndex) => {
+              const dayOfWeek = poolDay.day;
+              const columnX = DAY_COLUMN_START + (dayIndex * DAY_COLUMN_WIDTH);
+              const intervals: JSX.Element[] = [];
+              const intervalHeight = GRID_HOUR_HEIGHT / 4; // 15 minutes
+
+              console.log(`Creating intervals for ${dayOfWeek}:`, {
+                startMinuteAbs,
+                endMinuteAbs,
+                columnX,
+                intervalHeight
               });
 
-              // Get sessions for this pool and day
-              const sessions = getSessionsForPoolDay(pool.id, dayOfWeek);
+              for (let minute = startMinuteAbs; minute < endMinuteAbs; minute += 15) {
+                const intervalTop = (minute - startMinuteAbs) * (GRID_HOUR_HEIGHT / 60);
+                const intervalId = `pool-${pool.id}-day-${dayOfWeek}-minute-${minute}`;
+
+                intervals.push(
+                  <DroppableInterval
+                    key={intervalId}
+                    id={intervalId}
+                    poolId={pool.id}
+                    day={dayOfWeek}
+                    startMinute={minute}
+                    top={intervalTop}
+                    height={intervalHeight}
+                    width={DAY_COLUMN_WIDTH}
+                    columnX={columnX}
+                  />
+                );
+              }
 
               return (
-                <div
-                  key={`droppable-${dayOfWeek}`}
-                  ref={setNodeRef}
-                  className={`absolute ${isOver ? 'bg-blue-100 bg-opacity-50' : ''}`}
-                  style={{
-                    left: `${columnX}px`,
-                    width: `${DAY_COLUMN_WIDTH}px`,
-                    top: '0', // Start from the very top
-                    height: `${stageInternalHeight}px`, // Use full stage height
-                    zIndex: 5,
-                    transition: 'background-color 0.2s ease',
-                    pointerEvents: 'auto',
-                  }}
-                >
-                  {/* Render sessions for this day using CourseBlock */}
-                  {sessions.map(session => {
-                    // No need to get the course explicitly here if CourseBlock handles it
-                    // const course = getCourse(session.courseId);
-                    // if (!course) return null; 
-                    
-                    // Ensure the session times are valid numbers before rendering
-                    if (typeof session.start !== 'number' || typeof session.end !== 'number') {
-                      console.warn("Skipping rendering session with invalid time:", session);
-                      return null;
-                    }
-
-                    return (
-                      <CourseBlock
-                        key={session.id}
-                        session={session}
-                        courseId={session.courseId}
-                        isGrid={true} // Indicate it's on the grid
-                        // We might not need style prop if CourseBlock handles positioning internally
-                        // style={{
-                        //   position: 'absolute', // Ensure CourseBlock itself is positioned absolutely
-                        //   top: `${(session.start / 60 - startHour) * GRID_HOUR_HEIGHT}px`,
-                        //   left: '0',
-                        //   width: '100%',
-                        //   height: `${((session.end - session.start) / 60) * GRID_HOUR_HEIGHT}px`,
-                        // }}
-                      />
-                    );
-                  })}
+                <div key={`droppable-intervals-${dayOfWeek}`}>
+                  {intervals}
                 </div>
               );
             })}
@@ -367,5 +411,67 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
     </div>
   );
 };
+
+// Helper component for individual droppable intervals
+interface DroppableIntervalProps {
+  id: string;
+  poolId: string;
+  day: DayOfWeek;
+  startMinute: number;
+  top: number;
+  height: number;
+  width: number;
+  columnX: number;
+}
+
+const DroppableInterval = ({ id, poolId, day, startMinute, top, height, width, columnX }: DroppableIntervalProps) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: id,
+    data: {
+      type: 'pool-day-interval',
+      poolId,
+      day, // Just pass the day as is, without minute information
+      startMinute,
+    },
+  });
+
+  // Log when an interval is being hovered over
+  useEffect(() => {
+    if (isOver) {
+      console.log('Hovering over interval:', {
+        id,
+        poolId,
+        day,
+        startMinute,
+        top,
+        height,
+        // Add more detailed logging
+        dropData: {
+          type: 'pool-day-interval',
+          poolId,
+          day,
+          startMinute,
+        }
+      });
+    }
+  }, [isOver, id, poolId, day, startMinute, top, height]);
+
+  return (
+    <div
+      ref={setNodeRef}
+      data-interval-id={id} // Add data attribute for debugging
+      className={`absolute ${isOver ? 'bg-blue-200 bg-opacity-60 border border-blue-400' : ''}`}
+      style={{
+        left: `${columnX}px`,
+        width: `${width}px`,
+        top: `${top}px`, 
+        height: `${height}px`,
+        zIndex: 5,
+        transition: 'background-color 0.1s ease, border-color 0.1s ease',
+        pointerEvents: 'auto',
+      }}
+    />
+  );
+}
 
 export default ZoomablePoolCanvas;

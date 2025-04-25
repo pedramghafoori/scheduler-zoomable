@@ -87,24 +87,32 @@ const Index = () => {
         overRect: over.rect
       });
 
-      // Handle drops on pool day columns or pool canvas
+      // Handle drops on pool day intervals
       if (overId.startsWith('pool-')) {
         let poolId: string;
         let day: DayOfWeek;
         
-        if (overId.includes('-day-')) {
-          // Dropped on a specific day column
-          const parts = overId.split('-day-');
-          poolId = parts[0].replace('pool-','');
-          day = parts[1] as DayOfWeek;
-          console.log("Dropped on day column:", { poolId, day });
-        } else {
-          // Dropped on pool canvas - default to Monday
-          poolId = overId.replace('pool-', '');
-          day = 'Monday';
-          console.log("Dropped on pool canvas:", { poolId, day });
-        }
+        console.log("Attempting to parse interval ID:", overId);
         
+        // Extract pool ID and day from the interval ID
+        // Format is: pool-{poolId}-day-{day}-minute-{minute}
+        const parts = overId.split('-day-');
+        if (parts.length === 2) {
+          poolId = parts[0].replace('pool-', '');
+          // Extract just the day name (everything before -minute-)
+          day = parts[1].split('-minute-')[0] as DayOfWeek;
+          
+          console.log("Parsed drop target:", { 
+            poolId, 
+            day, 
+            originalId: overId,
+            startMinute: over.data.current?.startMinute 
+          });
+        } else {
+          console.error("Invalid interval ID format:", overId);
+          return;
+        }
+
         const targetPool = getPool(poolId);
         if (!targetPool) {
           console.error("Target pool not found for ID:", poolId);
@@ -112,39 +120,23 @@ const Index = () => {
         }
         console.log("Found target pool:", targetPool);
 
-        // Calculate time based on drop position
-        const startHour = targetPool.startHour ?? 8;
-        const dropPoint = over.rect.top ?? 0;
-        const containerTop = (over.rect.top ?? 0) - (startHour * HOUR_HEIGHT);
-        const minutesFromMidnight = Math.floor(((dropPoint - containerTop) / HOUR_HEIGHT) * 60);
+        // Get the start minute from the over data
+        const startMinute = over.data.current?.startMinute;
+        if (typeof startMinute !== 'number') {
+          console.error("Invalid start minute:", startMinute);
+          return;
+        }
         
-        // Snap to nearest 30-minute interval
-        const startMinutes = Math.max(
-          startHour * 60,
-          Math.min(
-            ((targetPool.endHour ?? 18) * 60) - 60,
-            Math.round(minutesFromMidnight / 30) * 30
-          )
-        );
-
-        console.log("Time calculation:", {
-          startHour,
-          dropPoint,
-          containerTop,
-          minutesFromMidnight,
-          startMinutes
-        });
-        
-        if (activeType === 'course' && course) {
+        if (activeType === 'course' && course) {  // Added check for course
           // New course from bank
           console.log("Creating new session:", {
             courseId: course.id,
             poolId,
             day,
-            startMinutes,
-            endMinutes: startMinutes + 60
+            startMinute,
+            endMinute: startMinute + 60
           });
-          createSession(course.id, poolId, day, startMinutes, startMinutes + 60);
+          createSession(course.id, poolId, day, startMinute, startMinute + 60);
         } else if (activeType === 'grid-course' && session) {
           // Moving existing course
           const duration = session.end - session.start;
@@ -152,14 +144,15 @@ const Index = () => {
             sessionId: session.id,
             poolId,
             day,
-            startMinutes,
-            endMinutes: startMinutes + duration
+            startMinute,
+            duration,
+            endMinute: startMinute + duration
           });
           updateSession(session.id, {
             poolId,
             day,
-            start: startMinutes,
-            end: startMinutes + duration
+            start: startMinute,
+            end: startMinute + duration
           });
         }
       }
