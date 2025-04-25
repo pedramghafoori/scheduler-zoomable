@@ -9,6 +9,7 @@ export interface Pool {
   y?: number;
   startHour?: number;
   endHour?: number;
+  courses: Course[];
 }
 
 export interface PoolDay {
@@ -19,9 +20,11 @@ export interface PoolDay {
 
 export interface Course {
   id: string;
-  title: string;
-  totalHours: number;
-  color: string;
+  name: string;
+  day: DayOfWeek;
+  startTime: number;
+  endTime: number;
+  color?: string;
 }
 
 export interface Session {

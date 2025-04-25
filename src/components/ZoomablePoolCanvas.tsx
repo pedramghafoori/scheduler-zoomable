@@ -288,64 +288,64 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
         {/* HTML Overlay for Drop Zones & Course Blocks */}
         <div
           className="absolute top-0 left-0 w-full h-full"
-          // This overlay needs to match the Stage's internal height for correct absolute positioning
           style={{ height: `${stageInternalHeight}px` }}
         >
-           <div
-             className="relative"
-             // This inner div also needs the full internal height
-             style={{ width: `${dynamicWidth}px`, height: `${stageInternalHeight}px` }}
-            >
-               {/* Create droppable div for each visible day column */}
-               {sortedPoolDays.map((poolDay, index) => {
-                 const dayOfWeek = poolDay.day;
-                 const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
-                 
-                 // Set up droppable for this column
-                 const { setNodeRef, isOver } = useDroppable({
-                    id: `pool-${pool.id}-day-${dayOfWeek}`,
-                    data: {
-                       type: 'pool-day',
-                       poolId: pool.id,
-                       day: dayOfWeek,
-                       columnX,
-                       startHour,
-                       endHour,
-                       gridHourHeight: GRID_HOUR_HEIGHT
-                     }
-                 });
+          <div
+            className="relative"
+            style={{ width: `${dynamicWidth}px`, height: `${stageInternalHeight}px` }}
+          >
+            {/* Create droppable div for each visible day column */}
+            {sortedPoolDays.map((poolDay, index) => {
+              const dayOfWeek = poolDay.day;
+              const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
 
-                 const sessions = getSessionsForPoolDay(pool.id, dayOfWeek);
+              // Set up droppable for this column
+              const { setNodeRef, isOver } = useDroppable({
+                id: `pool-${pool.id}-day-${dayOfWeek}`,
+                data: {
+                  type: 'pool-day',
+                  poolId: pool.id,
+                  day: dayOfWeek,
+                  startHour: startHour,
+                  endHour: endHour,
+                },
+              });
 
-                 return (
-                   <div
-                     key={`drop-zone-${dayOfWeek}`}
-                     ref={setNodeRef}
-                     className={`absolute ${isOver ? 'bg-blue-100 bg-opacity-30' : ''}`}
-                     style={{
-                       left: `${columnX}px`,
-                       width: `${DAY_COLUMN_WIDTH}px`,
-                       top: `${(startHour * GRID_HOUR_HEIGHT)}px`, // Position based on startHour offset
-                       height: `${canvasWrapperHeight}px`, // Droppable area height matches visible area
-                       zIndex: 5,
-                       position: 'absolute',
-                     }}
-                   >
-                     {/* Course Blocks Container */}
-                     <div className="relative h-full w-full">
-                       {sessions.map((session) => (
-                         <CourseBlock
-                           key={session.id}
-                           courseId={session.courseId}
-                           session={session}
-                           isGrid={true}
-                         />
-                       ))}
-                     </div>
-                   </div>
-                 );
-               })}
-           </div>
+              return (
+                <div
+                  key={`droppable-${dayOfWeek}`}
+                  ref={setNodeRef}
+                  className={`absolute ${isOver ? 'bg-blue-100 bg-opacity-50' : ''}`}
+                  style={{
+                    left: `${columnX}px`,
+                    width: `${DAY_COLUMN_WIDTH}px`,
+                    top: '0', // Start from the very top
+                    height: `${stageInternalHeight}px`, // Use full stage height
+                    zIndex: 5,
+                    transition: 'background-color 0.2s ease',
+                    pointerEvents: 'auto',
+                  }}
+                >
+                  {/* Render existing course blocks for this day */}
+                  {pool.courses?.filter(course => course.day === dayOfWeek)
+                    .map(course => (
+                      <div
+                        key={course.id}
+                        className="absolute bg-blue-100 border border-blue-300 rounded p-1 text-xs"
+                        style={{
+                          top: `${(course.startTime - startHour) * GRID_HOUR_HEIGHT}px`,
+                          left: '0',
+                          width: '100%',
+                          height: `${(course.endTime - course.startTime) * GRID_HOUR_HEIGHT}px`,
+                        }}
+                      >
+                        {course.name}
+                      </div>
+                    ))}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

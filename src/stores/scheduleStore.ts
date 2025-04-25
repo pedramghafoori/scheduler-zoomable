@@ -60,7 +60,7 @@ interface ScheduleState {
   updatePoolPosition: (poolId: string, x: number, y: number) => void;
   updatePoolTimeRange: (poolId: string, startHour: number, endHour: number) => void;
   reorderPools: (activeId: string, overId: string) => void;
-  addCourse: (title: string, totalHours: number) => void;
+  addCourse: (name: string, day: DayOfWeek, startTime: number, endTime: number) => void;
   createSession: (courseId: string, poolId: string, day: DayOfWeek, start: number, end: number) => string;
   updateSession: (id: string, updates: Partial<Session>) => void;
   deleteSession: (id: string) => void;
@@ -88,6 +88,7 @@ const INITIAL_POOLS: Pool[] = [
       { id: "poolday-2", poolId: "pool-1", day: "Wednesday" as DayOfWeek },
       { id: "poolday-3", poolId: "pool-1", day: "Friday" as DayOfWeek },
     ],
+    courses: [], // Initialize empty courses array
   },
   {
     id: "pool-2",
@@ -103,14 +104,43 @@ const INITIAL_POOLS: Pool[] = [
       { id: "poolday-6", poolId: "pool-2", day: "Saturday" as DayOfWeek },
       { id: "poolday-7", poolId: "pool-2", day: "Sunday" as DayOfWeek },
     ],
+    courses: [], // Initialize empty courses array
   },
 ];
 
 const INITIAL_COURSES = [
-  { id: "course-1", title: "Bronze", totalHours: 3, color: "#ef4444" },
-  { id: "course-2", title: "Silver", totalHours: 5, color: "#6366f1" },
-  { id: "course-3", title: "Gold", totalHours: 10, color: "#f59e0b" },
-  { id: "course-4", title: "NL", totalHours: 40, color: "#10b981" },
+  { 
+    id: "course-1", 
+    name: "Bronze", 
+    day: "Monday" as DayOfWeek,
+    startTime: 8,
+    endTime: 10,
+    color: "#ef4444" 
+  },
+  { 
+    id: "course-2", 
+    name: "Silver", 
+    day: "Wednesday" as DayOfWeek,
+    startTime: 9,
+    endTime: 11,
+    color: "#6366f1" 
+  },
+  { 
+    id: "course-3", 
+    name: "Gold", 
+    day: "Friday" as DayOfWeek,
+    startTime: 10,
+    endTime: 12,
+    color: "#f59e0b" 
+  },
+  { 
+    id: "course-4", 
+    name: "NL", 
+    day: "Tuesday" as DayOfWeek,
+    startTime: 8,
+    endTime: 12,
+    color: "#10b981" 
+  },
 ];
 
 export const useScheduleStore = create<ScheduleState>()(
@@ -186,6 +216,7 @@ export const useScheduleStore = create<ScheduleState>()(
               endHour: DEFAULT_END_HOUR,
               x: finalX,
               y: finalY,
+              courses: [], // Initialize empty courses array
             },
           ],
         }));
@@ -245,7 +276,7 @@ export const useScheduleStore = create<ScheduleState>()(
         });
       },
 
-      addCourse: (title, totalHours) => {
+      addCourse: (name: string, day: DayOfWeek, startTime: number, endTime: number) => {
         const colorIndex = get().courses.length % COURSE_COLORS.length;
         
         set((state) => ({
@@ -253,8 +284,10 @@ export const useScheduleStore = create<ScheduleState>()(
             ...state.courses,
             {
               id: nanoid(),
-              title,
-              totalHours,
+              name,
+              day,
+              startTime,
+              endTime,
               color: COURSE_COLORS[colorIndex],
             },
           ],
