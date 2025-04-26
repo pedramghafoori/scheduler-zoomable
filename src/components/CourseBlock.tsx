@@ -35,7 +35,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
     const {
       attributes: dragAttributes,
       listeners: dragListeners,
-      setNodeRef: setDragNodeRef,
+      setNodeRef,
       isDragging,
     } = useDraggable({
       id: isGrid ? `grid-course-${session?.id}` : `bank-course-${courseId}`,
@@ -49,6 +49,29 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
 
     const course = scheduleStore.getCourse(courseId);
     if (!course) return null;
+
+    const gridStyle = isGrid ? {
+      position: 'relative' as const,
+      height: '100%',
+      width: '100%',
+      backgroundColor: course.color || '#4f46e5',
+      color: getContrastText(course.color || '#4f46e5'),
+      zIndex: isDragging ? 1000 : 10,
+      cursor: 'grab',
+      touchAction: 'none',
+      userSelect: 'none' as const,
+    } : {};
+    
+    const bankStyle = !isGrid ? {
+      backgroundColor: course.color || '#4f46e5',
+      color: getContrastText(course.color || '#4f46e5'),
+      height: '60px',
+      marginBottom: '8px',
+      zIndex: isDragging ? 1000 : 10,
+      cursor: 'grab',
+      touchAction: 'none',
+      userSelect: 'none' as const,
+    } : {};
 
     // Reset resize state when component unmounts or session changes
     useEffect(() => {
@@ -77,14 +100,17 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       sessionStartY.current = session.end;
 
       // Add global event listeners
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp, true);
-      window.addEventListener('touchmove', handleMouseMove as any);
-      window.addEventListener('touchend', handleMouseUp, true);
+      window.addEventListener('mousemove', handleMouseMove, { capture: true });
+      window.addEventListener('mouseup', handleMouseUp, { capture: true });
+      window.addEventListener('touchmove', handleMouseMove as any, { capture: true });
+      window.addEventListener('touchend', handleMouseUp, { capture: true });
     };
 
     const handleMouseMove = (e: MouseEvent | TouchEvent) => {
       if (!session?.id || !isResizeActive.current) return;
+
+      e.preventDefault();
+      e.stopPropagation();
 
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
       const delta = (clientY - resizeStartY.current) / scale;
@@ -99,51 +125,30 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent | TouchEvent) => {
       if (!isResizeActive.current) return;
       
+      e.preventDefault();
+      e.stopPropagation();
+
       isResizeActive.current = false;
       setIsResizing(false);
 
       // Remove global event listeners
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp, true);
-      window.removeEventListener('touchmove', handleMouseMove as any);
-      window.removeEventListener('touchend', handleMouseUp, true);
+      window.removeEventListener('mousemove', handleMouseMove, { capture: true });
+      window.removeEventListener('mouseup', handleMouseUp, { capture: true });
+      window.removeEventListener('touchmove', handleMouseMove as any, { capture: true });
+      window.removeEventListener('touchend', handleMouseUp, { capture: true });
     };
-
-    const gridStyle = isGrid ? {
-      position: 'relative' as const,
-      height: '100%',
-      width: '100%',
-      backgroundColor: course.color || '#4f46e5',
-      color: getContrastText(course.color || '#4f46e5'),
-      zIndex: isDragging ? 1000 : 10,
-      cursor: isResizing ? 'ns-resize' : 'grab',
-      touchAction: 'none',
-      userSelect: 'none' as const,
-    } : {};
-    
-    const bankStyle = !isGrid ? {
-      backgroundColor: course.color || '#4f46e5',
-      color: getContrastText(course.color || '#4f46e5'),
-      height: '60px',
-      marginBottom: '8px',
-      zIndex: isDragging ? 1000 : 10,
-      cursor: 'grab',
-      touchAction: 'none',
-      userSelect: 'none' as const,
-    } : {};
 
     return (
       <div className="relative w-full h-full">
         <div
-          ref={setDragNodeRef}
+          ref={setNodeRef}
           {...(isResizing ? {} : { ...dragAttributes, ...dragListeners })}
           className={cn(
             "course-block-wrapper relative rounded-md select-none",
-            className,
-            isResizing ? "pointer-events-none" : ""
+            className
           )}
           style={{ 
             ...gridStyle, 
@@ -152,7 +157,6 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
             opacity: isDragging ? 0.8 : 1,
             transition: 'transform 0.2s, opacity 0.2s',
             height: isGrid ? 'calc(100% - 8px)' : '60px',
-            cursor: isResizing ? 'ns-resize' : 'grab',
             ...style,
           }}
         >
@@ -187,7 +191,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
           <div
             className="absolute bottom-0 left-0 right-0 h-4 bg-black bg-opacity-20 cursor-ns-resize select-none hover:bg-opacity-30 transition-colors"
             style={{
-              zIndex: 50,
+              zIndex: isResizing ? 1000 : 50,
             }}
             onMouseDown={handleResizeStart}
             onTouchStart={handleResizeStart}
