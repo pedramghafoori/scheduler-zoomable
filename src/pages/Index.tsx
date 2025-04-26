@@ -174,7 +174,7 @@ const Index = () => {
       // --- End grid‑course move block ---
 
       // Handle course dragging
-      if (activeData?.type === 'course' || activeData?.type === 'grid-course') {
+      if (activeData?.type === 'bank-block' || activeData?.type === 'grid-course') {
         const course = activeData.course;
         const session = activeData.session;
         
@@ -215,7 +215,7 @@ const Index = () => {
               )
             );
             
-            if (activeData.type === 'course') {
+            if (activeData.type === 'bank-block') {
               createSession(course.id, closestPool.id, 'Monday', startMinutes, startMinutes + 60);
             } else if (activeData.type === 'grid-course' && session) {
               const duration = session.end - session.start;
@@ -257,7 +257,7 @@ const Index = () => {
           </div>
         </div>
         <DragOverlay dropAnimation={null}>
-          {activeDragItem && (activeDragItem.data.current?.type === 'course' || activeDragItem.data.current?.type === 'grid-course') && (
+          {activeDragItem && (activeDragItem.data.current?.type === 'bank-block' || activeDragItem.data.current?.type === 'grid-course') && (
             <CourseBlock 
               courseId={activeDragItem.data.current.course?.id || activeDragItem.data.current.session?.courseId} 
               session={activeDragItem.data.current.session}
