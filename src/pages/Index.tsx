@@ -144,36 +144,37 @@ const Index = () => {
 
       // --- Move an existing grid course block within / between pools ---
       if (
-        activeData?.type === 'grid-course' &&  // dragged item is a block on the grid
+        (activeData?.type === 'grid-course' || activeData?.type === 'bank-block') &&  // dragged item is a block on the grid or from bank
         overData?.type === 'pool-day-interval' &&             // dropped on a 15‑min interval cell
-        activeData.session                                    // session object exists
+        (activeData.session || activeData.courseId)           // has either a session or courseId
       ) {
-        const { session } = activeData;
         const { poolId: newPoolId, day: newDay, startMinute } = overData;
 
-        // Preserve the original length
-        const duration = session.end - session.start;
-
-        console.log('Updating session after drag:', {
-          sessionId: session.id,
-          fromPool: session.poolId,
-          toPool: newPoolId,
-          newDay,
-          newStart: startMinute,
-          duration
-        });
-
-        updateSession(session.id, {
-          poolId: newPoolId,
-          day: newDay as DayOfWeek,
-          start: startMinute,
-          end: startMinute + duration,
-        });
-        console.log("Session update dispatched");
+        if (activeData.type === 'bank-block') {
+          // Create new session for bank block
+          createSession(
+            activeData.courseId,
+            newPoolId,
+            newDay as DayOfWeek,
+            startMinute,
+            startMinute + 60 // Default 1 hour duration for new sessions
+          );
+          console.log("Created new session from bank block");
+        } else if (activeData.session) {
+          // Update existing session
+          const duration = activeData.session.end - activeData.session.start;
+          updateSession(activeData.session.id, {
+            poolId: newPoolId,
+            day: newDay as DayOfWeek,
+            start: startMinute,
+            end: startMinute + duration,
+          });
+          console.log("Updated existing session");
+        }
       }
       // --- End grid‑course move block ---
 
-      // Handle course dragging
+      // Handle course dragging to whiteboard
       if (activeData?.type === 'bank-block' || activeData?.type === 'grid-course') {
         const course = activeData.course;
         const session = activeData.session;
