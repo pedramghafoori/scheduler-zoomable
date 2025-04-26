@@ -166,7 +166,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
             style={{ 
               ...gridStyle, 
               ...bankStyle,
-              transform: isDragging ? `translate3d(${transform?.x}px, ${transform?.y}px, 0) scale(1.05)` : undefined,
+              transform: isDragging ? 'scale(1.05)' : undefined,
               opacity: isDragging ? 0.8 : 1,
               transition: 'transform 0.2s, opacity 0.2s',
               height: isGrid ? '100%' : '60px',
@@ -191,7 +191,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
             {isGrid && session && (
               <>
                 <button
-                  className="absolute top-2 right-3 z-20 p-1 rounded-full bg-black bg-opacity-30 hover:bg-opacity-40 transition-colors"
+                  className="absolute top-1 right-1 z-20 p-1 rounded-full bg-black bg-opacity-30 hover:bg-opacity-40 transition-colors"
                   onClick={handleEditClick}
                   onPointerDown={(e) => {
                     e.preventDefault();

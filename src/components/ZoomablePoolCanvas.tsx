@@ -369,48 +369,12 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
         {/* HTML Overlay for Drop Zones & Course Blocks */}
         <div
           className="absolute top-0 left-0 w-full h-full"
-          style={{ height: `${stageInternalHeight}px` }}
+          style={{ height: `${stageInternalHeight}px`, pointerEvents: 'none' }}
         >
           <div
             className="relative"
             style={{ width: `${dynamicWidth}px`, height: `${stageInternalHeight}px` }}
           >
-            {/* Outer container for positioning course blocks relative to the timeline */}
-            <div className="absolute top-0 left-0 w-full" style={{ height: `${stageInternalHeight}px` }}>
-              {/* Loop through days to position CourseBlocks */} 
-              {sortedPoolDays.map((poolDay, index) => {
-                const dayOfWeek = poolDay.day;
-                const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
-                const sessions = getSessionsForPoolDay(pool.id, dayOfWeek);
-
-                return (
-                  <div
-                    key={`course-container-${dayOfWeek}`}
-                    className="absolute"
-                    style={{
-                      left: `${columnX}px`,
-                      width: `${DAY_COLUMN_WIDTH}px`,
-                      top: '0', // Aligns with the stage
-                      height: `${stageInternalHeight}px`,
-                      pointerEvents: 'auto', // allow grabbing the course blocks again
-                    }}
-                  >
-                    {/* Render CourseBlocks absolutely positioned within this day container */} 
-                    {sessions.map(session => {
-                      if (typeof session.start !== 'number' || typeof session.end !== 'number') {
-                        console.log("Skipping session with invalid time:", session);
-                        return null;
-                      }
-                      const topPx = minutesToPixels(session.start - startMinuteAbs);
-                      return (
-                        <GridCourseBlock key={session.id} session={session} topPx={topPx} />
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-
             {/* Create 15-min droppable zones for each visible day column */}
             {sortedPoolDays.map((poolDay, dayIndex) => {
               const dayOfWeek = poolDay.day;
@@ -438,11 +402,59 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
               }
 
               return (
-                <div key={`droppable-intervals-${dayOfWeek}`}>
+                <div 
+                  key={`droppable-intervals-${dayOfWeek}`}
+                  style={{ pointerEvents: 'all' }}
+                >
                   {intervals}
                 </div>
               );
             })}
+
+            {/* Outer container for positioning course blocks relative to the timeline */}
+            <div className="absolute top-0 left-0 w-full" style={{ height: `${stageInternalHeight}px`, pointerEvents: 'none' }}>
+              {/* Loop through days to position CourseBlocks */} 
+              {sortedPoolDays.map((poolDay, index) => {
+                const dayOfWeek = poolDay.day;
+                const columnX = DAY_COLUMN_START + (index * DAY_COLUMN_WIDTH);
+                const sessions = getSessionsForPoolDay(pool.id, dayOfWeek);
+
+                return (
+                  <div
+                    key={`course-container-${dayOfWeek}`}
+                    className="absolute"
+                    style={{
+                      left: `${columnX}px`,
+                      width: `${DAY_COLUMN_WIDTH}px`,
+                      top: '0',
+                      height: `${stageInternalHeight}px`,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {sessions.map(session => {
+                      if (typeof session.start !== 'number' || typeof session.end !== 'number') {
+                        console.log("Skipping session with invalid time:", session);
+                        return null;
+                      }
+                      const topPx = minutesToPixels(session.start - startMinuteAbs);
+                      return (
+                        <div 
+                          key={session.id} 
+                          style={{ 
+                            position: 'absolute',
+                            top: `${topPx}px`,
+                            width: '100%',
+                            pointerEvents: 'all'
+                          }}
+                        >
+                          <GridCourseBlock session={session} topPx={0} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -484,9 +496,9 @@ const DroppableInterval = ({ id, poolId, day, startMinute, top, height, width, c
         width: `${width}px`,
         top: `${top}px`,
         height: `${height}px`,
-        zIndex: isOver ? 20 : 5,
+        zIndex: isOver ? 20 : 10,
         transition: 'background-color 0.1s ease, border-color 0.1s ease',
-        pointerEvents: 'none', // Change this to none so it detects the dragged block's top edge
+        pointerEvents: 'all',
         transform: 'translate3d(0, 0, 0)', // Force GPU acceleration
       }}
     />
