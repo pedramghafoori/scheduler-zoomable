@@ -31,12 +31,14 @@ const Index = () => {
     try {
       const { active } = event;
       setActiveDragItem(active);
-      startDragOperation();
-      console.log("Drag started:", { active });
       
       if (active.data.current?.type === 'poolCanvas') {
-        startDragOperation();
+        startDragOperation(null, true); // Start pool drag
+      } else {
+        startDragOperation(); // Start regular drag
       }
+      
+      console.log("Drag started:", { active });
     } catch (error) {
       console.error("Error in drag start:", error);
       endDragOperation();
@@ -45,7 +47,7 @@ const Index = () => {
 
   const handleDragEnd = (event: DragEndEvent) => {
     try {
-      const { active, over } = event;
+      const { active, over, delta } = event;
       
       if (!active || !over) {
         console.log("No active or over target");
@@ -61,9 +63,25 @@ const Index = () => {
         const pool = getPool(poolId);
         
         if (pool) {
-          const adjustedX = over.rect.left / whiteboardScale;
-          const adjustedY = over.rect.top / whiteboardScale;
-          updatePoolPosition(poolId, adjustedX, adjustedY);
+          // Use delta to calculate the change in position
+          const adjustedDeltaX = delta.x / whiteboardScale;
+          const adjustedDeltaY = delta.y / whiteboardScale;
+          
+          // Add delta to current position
+          const newX = (pool.x ?? 0) + adjustedDeltaX;
+          const newY = (pool.y ?? 0) + adjustedDeltaY;
+          
+          console.log('Updating pool position:', {
+            poolId,
+            oldX: pool.x,
+            oldY: pool.y,
+            deltaX: adjustedDeltaX,
+            deltaY: adjustedDeltaY,
+            newX,
+            newY
+          });
+          
+          updatePoolPosition(poolId, newX, newY);
         }
       }
 

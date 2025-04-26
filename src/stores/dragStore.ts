@@ -18,7 +18,7 @@ interface DragState {
   isPoolDragging: boolean;
 
   /** Start a drag operation with optional session */
-  startDragOperation: (session?: Session) => void;
+  startDragOperation: (session?: Session, isPool?: boolean) => void;
 
   /** End any ongoing drag operation */
   endDragOperation: () => void;
@@ -28,9 +28,6 @@ interface DragState {
 
   /** Update the whiteboard scale */
   updateScale: (scale: number) => void;
-
-  /** Start pool dragging operation */
-  startPoolDrag: () => void;
 }
 
 export const useDragStore = create<DragState>((set) => ({
@@ -40,9 +37,10 @@ export const useDragStore = create<DragState>((set) => ({
   whiteboardScale: 1,
   isPoolDragging: false,
 
-  startDragOperation: (session = null) => set({
+  startDragOperation: (session = null, isPool = false) => set({
     dragSession: session,
     isDragging: true,
+    isPoolDragging: isPool,
     pointerY: null,
   }),
 
@@ -59,10 +57,5 @@ export const useDragStore = create<DragState>((set) => ({
 
   updateScale: (scale) => set({ 
     whiteboardScale: scale 
-  }),
-
-  startPoolDrag: () => set({ 
-    isPoolDragging: true,
-    isDragging: true,
   }),
 }));
