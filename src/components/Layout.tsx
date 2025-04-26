@@ -164,7 +164,7 @@ const Layout = ({ children }: LayoutProps) => {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       collisionDetection={pointerWithin}
-      modifiers={[restrictToVerticalAxis]}
+      modifiers={[]}
     >
       <div className="h-screen flex flex-col">
         <header className="bg-white border-b fixed top-0 left-0 right-0 z-30 shadow-sm">
