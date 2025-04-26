@@ -68,11 +68,12 @@ const topEdgeCollision: CollisionDetection = ({
 };
 
 const Index = () => {
-  const { createSession, updatePoolPosition, getPool, updateSession } = useScheduleStore((state) => ({
+  const { createSession, updateSession, deleteSession, updatePoolPosition, getPool } = useScheduleStore((state) => ({
     createSession: state.createSession,
+    updateSession: state.updateSession,
+    deleteSession: state.deleteSession,
     updatePoolPosition: state.updatePoolPosition,
     getPool: state.getPool,
-    updateSession: state.updateSession,
   }));
   const { whiteboardScale, startDragOperation, endDragOperation } = useDragStore((state) => ({ 
     whiteboardScale: state.whiteboardScale,
@@ -103,7 +104,7 @@ const Index = () => {
 
   const handleDragEnd = (event: DragEndEvent) => {
     try {
-      const { active, over, delta } = event;
+      const { active, over } = event;
       
       console.log("=== Drag End Debug ===");
       console.log("Active item:", active);
@@ -119,6 +120,13 @@ const Index = () => {
 
       console.log("Active type:", activeData?.type, "Over type:", overData?.type);
 
+      // Handle dropping into course bank
+      if (overId === 'course-bank' && activeData?.type === 'grid-course' && activeData.session) {
+        console.log("Deleting session:", activeData.session.id);
+        deleteSession(activeData.session.id);
+        return;
+      }
+
       // Handle pool canvas dragging
       if (activeData?.type === 'poolCanvas') {
         const poolId = activeData.poolId;
@@ -126,8 +134,8 @@ const Index = () => {
         
         if (pool) {
           // Use delta to calculate the change in position
-          const adjustedDeltaX = delta.x / whiteboardScale;
-          const adjustedDeltaY = delta.y / whiteboardScale;
+          const adjustedDeltaX = event.delta.x / whiteboardScale;
+          const adjustedDeltaY = event.delta.y / whiteboardScale;
           
           // Add delta to current position
           const newX = (pool.x ?? 0) + adjustedDeltaX;
