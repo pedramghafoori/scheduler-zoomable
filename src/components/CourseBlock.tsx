@@ -8,6 +8,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { useWhiteboardStore } from "@/stores/whiteboardStore";
 import { cn } from "@/lib/utils";
 import { clientYToMinutes } from "@/lib/position";
+import EditCourseModal from './EditCourseModal';
 
 interface CourseBlockProps {
   courseId: string;
@@ -28,6 +29,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
     const { transformState } = useWhiteboardStore();
     const scale = transformState?.scale || 1;
     const [isResizing, setIsResizing] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const resizeStartY = useRef(0);
     const sessionStartY = useRef(0);
     const isResizeActive = useRef(false);
@@ -37,6 +39,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       listeners: dragListeners,
       setNodeRef,
       isDragging,
+      transform,
     } = useDraggable({
       id: isGrid ? `grid-course-${session?.id}` : `bank-course-${courseId}`,
       data: {
@@ -49,6 +52,12 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
 
     const course = scheduleStore.getCourse(courseId);
     if (!course) return null;
+
+    const handleEditClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsEditModalOpen(true);
+    };
 
     const gridStyle = isGrid ? {
       position: 'relative' as const,
@@ -81,6 +90,8 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       };
     }, [session?.id]);
 
+    // Commenting out resize functionality
+    /*
     const handleResizeStart = (e: React.MouseEvent | React.TouchEvent) => {
       if (!session?.id || isResizeActive.current) return;
       
@@ -140,64 +151,97 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       window.removeEventListener('touchmove', handleMouseMove as any, { capture: true });
       window.removeEventListener('touchend', handleMouseUp, { capture: true });
     };
+    */
 
     return (
-      <div className="relative w-full h-full">
-        <div
-          ref={setNodeRef}
-          {...(isResizing ? {} : { ...dragAttributes, ...dragListeners })}
-          className={cn(
-            "course-block-wrapper relative rounded-md select-none",
-            className
-          )}
-          style={{ 
-            ...gridStyle, 
-            ...bankStyle,
-            transform: isDragging ? 'scale(1.05)' : undefined,
-            opacity: isDragging ? 0.8 : 1,
-            transition: 'transform 0.2s, opacity 0.2s',
-            height: isGrid ? 'calc(100% - 8px)' : '60px',
-            ...style,
-          }}
-        >
-          <div className={`course-block-body p-2 h-full flex flex-col`}>
-            <div className="font-medium truncate">{course.name}</div>
+      <>
+        <div className="relative w-full h-full">
+          <div
+            ref={setNodeRef}
+            {...(isResizing ? {} : { ...dragAttributes, ...dragListeners })}
+            className={cn(
+              "course-block-wrapper relative rounded-md select-none",
+              className
+            )}
+            style={{ 
+              ...gridStyle, 
+              ...bankStyle,
+              transform: isDragging ? `translate3d(${transform?.x}px, ${transform?.y}px, 0) scale(1.05)` : undefined,
+              opacity: isDragging ? 0.8 : 1,
+              transition: 'transform 0.2s, opacity 0.2s',
+              height: isGrid ? '100%' : '60px',
+              ...style,
+            }}
+          >
+            <div className={`course-block-body p-2 h-full flex flex-col`}>
+              <div className="font-medium truncate">{course.name}</div>
+              {isGrid && session && (
+                <div className="text-xs mt-auto">
+                  {formatTime(session.start)} - {formatTime(session.end)}
+                </div>
+              )}
+            </div>
             {isGrid && session && (
-              <div className="text-xs mt-auto">
-                {formatTime(session.start)} - {formatTime(session.end)}
+              <>
+                <button
+                  className="absolute top-1 right-1 z-20 p-1 rounded-full bg-black bg-opacity-30 hover:bg-opacity-40 transition-colors"
+                  onClick={handleEditClick}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  title="Edit course duration"
+                >
+                  <svg 
+                    className="w-3 h-3 text-white" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" 
+                    />
+                  </svg>
+                </button>
+                {/* Commenting out resize handle
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-4 cursor-ns-resize"
+                  onMouseDown={handleResizeStart}
+                  onTouchStart={handleResizeStart}
+                  style={{ touchAction: 'none' }}
+                />
+                */}
+              </>
+            )}
+            {!isGrid && (
+              <div 
+                className="absolute top-1 right-1 z-20 cursor-pointer p-0.5 bg-black bg-opacity-30 rounded-full leading-none"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  scheduleStore.removeCourse(courseId);
+                }}
+                title="Remove course from bank"
+              >
+                <span className="text-white hover:text-gray-200 text-xs font-bold">×</span>
               </div>
             )}
           </div>
-          {!isGrid && (
-            <div 
-              className="absolute top-1 right-1 z-20 cursor-pointer p-0.5 bg-black bg-opacity-30 rounded-full leading-none"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                scheduleStore.removeCourse(courseId);
-              }}
-              title="Remove course from bank"
-            >
-              <span className="text-white hover:text-gray-200 text-xs font-bold">×</span>
-            </div>
-          )}
         </div>
-
-        {isGrid && session && (
-          <div
-            className="absolute bottom-0 left-0 right-0 h-4 bg-black bg-opacity-20 cursor-ns-resize select-none hover:bg-opacity-30 transition-colors"
-            style={{
-              zIndex: isResizing ? 1000 : 50,
-            }}
-            onMouseDown={handleResizeStart}
-            onTouchStart={handleResizeStart}
+        {isEditModalOpen && (
+          <EditCourseModal
+            onClose={() => setIsEditModalOpen(false)}
+            courseId={courseId}
           />
         )}
-      </div>
+      </>
     );
   }
 );
