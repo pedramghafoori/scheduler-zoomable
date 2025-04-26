@@ -17,12 +17,12 @@ import { useRef, useState } from "react";
  * 
  * Why this is necessary:
  * 1. Course blocks need to snap precisely to 15-minute intervals
- * 2. The position where a course starts should be determined by its top edge, not its center
+ * 2. The position where a course starts should be determined by the center of its top edge, not its corner
  * 3. Using center-point or full-rectangle collision would cause positioning errors due to varying block heights
  * 
  * How it works:
- * - Creates a 1px tall rectangle at the top edge of the dragged course block
- * - Only detects collisions with this thin top edge
+ * - Creates a thin rectangle at the center of the top edge of the dragged course block
+ * - Only detects collisions with this thin centered line
  * - Ensures the highlighted drop zone exactly matches where the course will start
  * 
  * DO NOT MODIFY OR REPLACE THIS WITH OTHER COLLISION DETECTION STRATEGIES
@@ -36,19 +36,24 @@ const topEdgeCollision: CollisionDetection = ({
 }) => {
   if (!collisionRect) return [];
 
-  // Create a thin rectangle at the top edge of the dragging element
+  // Create a thin rectangle at the center of the top edge
+  const centerX = collisionRect.left + (collisionRect.width / 2);
   const topEdgeRect: ClientRect = {
-    ...collisionRect,
-    height: 1, // Make it just 1px tall to ensure we only detect collisions at the top edge
+    left: centerX - 1, // 2px wide centered line
+    right: centerX + 1,
+    top: collisionRect.top,
+    bottom: collisionRect.top + 1, // 1px tall
+    width: 2,
+    height: 1
   };
 
-  // Find intersecting droppables using the top edge rectangle
+  // Find intersecting droppables using the centered top edge
   return droppableContainers
     .filter((container) => {
       const rect = droppableRects.get(container.id);
       if (!rect) return false;
       
-      // Check if the top edge intersects with this droppable
+      // Check if the centered top edge intersects with this droppable
       return (
         topEdgeRect.left < rect.right &&
         topEdgeRect.right > rect.left &&
