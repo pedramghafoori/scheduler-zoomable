@@ -152,7 +152,7 @@ const Whiteboard = () => {
         pinch={{ disabled: isPoolDragging || isDragging }}
         doubleClick={{ disabled: isPoolDragging || isDragging }}
         onTransformed={(ref, state) => {
-          if (!isPoolDragging) {
+          if (!isPoolDragging && !isDragging) {
             setTransformState(state);
             updateScale(state.scale);
           }

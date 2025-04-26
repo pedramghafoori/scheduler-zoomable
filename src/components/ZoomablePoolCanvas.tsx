@@ -7,6 +7,7 @@ import { format } from "date-fns"; // For formatting hour labels
 import { DraggableSyntheticListeners, DraggableAttributes } from '@dnd-kit/core'; // Import this
 import { Input } from "@/components/ui/input"; // Import Input
 import { useDroppable, useDraggable } from "@dnd-kit/core";
+import { useDragStore } from "@/stores/dragStore";
 import CourseBlock from "@/components/CourseBlock"; // Add CourseBlock import
 
 // Import shadcn components
@@ -49,28 +50,26 @@ const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
     id: `grid-course-${session.id}`,
     data: { type: 'grid-course', session },
   });
+  const { isDragging } = useDragStore();
+
+  const handlePointerEvent = (e: React.PointerEvent) => {
+    // Only stop propagation if we're actually dragging
+    if (isDragging) {
+      e.stopPropagation();
+      // Prevent any other handlers from firing
+      e.preventDefault();
+    }
+  };
 
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      onPointerDownCapture={(e) => {
-        e.stopPropagation();
-        // ⬇️  also stop *all* further propagation for this event
-        // @ts-ignore
-        e.nativeEvent.stopImmediatePropagation?.();
-      }}
-      onPointerMoveCapture={(e) => {
-        e.stopPropagation();
-        // @ts-ignore
-        e.nativeEvent.stopImmediatePropagation?.();
-      }}
-      onPointerUpCapture={(e) => {
-        e.stopPropagation();
-        // @ts-ignore
-        e.nativeEvent.stopImmediatePropagation?.();
-      }}
+      onPointerDown={handlePointerEvent}
+      onPointerMove={handlePointerEvent}
+      onPointerUp={handlePointerEvent}
+      onPointerCancel={handlePointerEvent}
       style={{
         position: 'absolute',
         top: `${topPx}px`,
@@ -81,8 +80,8 @@ const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
           ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
           : undefined,
         pointerEvents: 'auto',
-        zIndex: 15,
-        cursor: 'grab',
+        zIndex: isDragging ? 100 : 15,
+        cursor: isDragging ? 'grabbing' : 'grab',
       }}
     >
       <CourseBlock

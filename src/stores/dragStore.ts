@@ -17,11 +17,11 @@ interface DragState {
   /** True if a pool canvas is currently being dragged */
   isPoolDragging: boolean;
 
-  /** Manually set/clear the global dragging flag (for drags not tied to a Session) */
-  setIsDragging: (v: boolean) => void;
+  /** Start a drag operation with optional session */
+  startDragOperation: (session?: Session) => void;
 
-  /** Begin dragging a session */
-  startDrag: (session: Session) => void;
+  /** End any ongoing drag operation */
+  endDragOperation: () => void;
 
   /** Update the live pointer Y while dragging */
   movePointer: (y: number) => void;
@@ -29,48 +29,40 @@ interface DragState {
   /** Update the whiteboard scale */
   updateScale: (scale: number) => void;
 
-  /** Indicate pool drag started */
+  /** Start pool dragging operation */
   startPoolDrag: () => void;
-
-  /** Indicate pool drag ended */
-  endPoolDrag: () => void;
-
-  /** Finish the drag operation (drop or cancel) */
-  endDrag: () => void;
 }
 
 export const useDragStore = create<DragState>((set) => ({
   dragSession: null,
   isDragging: false,
   pointerY: null,
-  whiteboardScale: 1, // Default scale is 1
+  whiteboardScale: 1,
   isPoolDragging: false,
 
-  setIsDragging: (v) => set({ isDragging: v }),
+  startDragOperation: (session = null) => set({
+    dragSession: session,
+    isDragging: true,
+    pointerY: null,
+  }),
 
-  startDrag: (session) =>
-    set({
-      dragSession: session,
-      isDragging: true,
-      pointerY: null,
-    }),
+  endDragOperation: () => set({
+    dragSession: null,
+    isDragging: false,
+    pointerY: null,
+    isPoolDragging: false,
+  }),
 
-  movePointer: (y) =>
-    set({
-      pointerY: y,
-    }),
+  movePointer: (y) => set({
+    pointerY: y,
+  }),
 
-  updateScale: (scale) => set({ whiteboardScale: scale }),
+  updateScale: (scale) => set({ 
+    whiteboardScale: scale 
+  }),
 
-  startPoolDrag: () => set({ isPoolDragging: true }),
-
-  endPoolDrag: () => set({ isPoolDragging: false }),
-
-  endDrag: () =>
-    set({
-      dragSession: null,
-      isDragging: false,
-      pointerY: null,
-      isPoolDragging: false, // Also reset here
-    }),
+  startPoolDrag: () => set({ 
+    isPoolDragging: true,
+    isDragging: true,
+  }),
 }));
