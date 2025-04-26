@@ -174,7 +174,14 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
             }}
           >
             <div className={`course-block-body p-2 h-full flex flex-col`}>
-              <div className="font-medium truncate">{course.name}</div>
+              <div className="font-medium truncate flex items-center gap-2">
+                <span>{course.name}</span>
+                {session && (
+                  <span className="text-xs opacity-80">
+                    {Math.floor((session.end - session.start) / 60)}h {(session.end - session.start) % 60}m
+                  </span>
+                )}
+              </div>
               {isGrid && session && (
                 <div className="text-xs mt-auto">
                   {formatTime(session.start)} - {formatTime(session.end)}
@@ -184,7 +191,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
             {isGrid && session && (
               <>
                 <button
-                  className="absolute top-1 right-1 z-20 p-1 rounded-full bg-black bg-opacity-30 hover:bg-opacity-40 transition-colors"
+                  className="absolute top-2 right-3 z-20 p-1 rounded-full bg-black bg-opacity-30 hover:bg-opacity-40 transition-colors"
                   onClick={handleEditClick}
                   onPointerDown={(e) => {
                     e.preventDefault();
