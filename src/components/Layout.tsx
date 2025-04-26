@@ -1,9 +1,18 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { DndContext, DragStartEvent, DragEndEvent, pointerWithin } from "@dnd-kit/core";
+import { 
+  DndContext, 
+  DragStartEvent, 
+  DragEndEvent,
+  CollisionDetection,
+  DroppableContainer,
+  Collision,
+  pointerWithin,
+} from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { useDragStore } from "@/stores/dragStore";
 import { useScheduleStore } from "@/stores/scheduleStore";
+import { useWhiteboardStore } from "@/stores/whiteboardStore";
 import { DayOfWeek } from "@/lib/types";
 import { DEFAULT_SESSION_DURATION } from "@/lib/constants";
 import { clientYToMinutes } from "@/lib/position";
@@ -13,9 +22,48 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+const customCollisionDetection: CollisionDetection = ({
+  active,
+  droppableContainers,
+  pointerCoordinates,
+}) => {
+  if (!pointerCoordinates) {
+    return [];
+  }
+
+  // Get the drag offset from the active element
+  const activeElement = document.getElementById(active.id as string);
+  const offsetY = activeElement?.getAttribute('data-drag-offset-y');
+  const dragOffset = offsetY ? parseInt(offsetY, 10) : 0;
+
+  // Adjust the pointer coordinates by the drag offset
+  const adjustedY = pointerCoordinates.y - dragOffset;
+
+  // Find the interval that contains the adjusted pointer position
+  return droppableContainers
+    .filter((container) => {
+      if (!container.data.current) return false;
+      
+      const { top, height } = container.data.current;
+      return (
+        adjustedY >= top &&
+        adjustedY < top + height
+      );
+    })
+    .map((container) => ({
+      id: container.id,
+      data: {
+        droppableContainer: container,
+        value: 1
+      }
+    }));
+};
+
 const Layout = ({ children }: LayoutProps) => {
   const { startDragOperation, endDragOperation, pointerY } = useDragStore();
   const { createSession, updateSession, deleteSession, reorderPools, getPool, sessions } = useScheduleStore();
+  const { transformState } = useWhiteboardStore();
+  const scale = transformState?.scale || 1;
 
   const handleDragStart = (event: DragStartEvent) => {
     try {
@@ -41,7 +89,7 @@ const Layout = ({ children }: LayoutProps) => {
         };
         console.log("Created temp session for bank block:", tempSession);
         startDragOperation(tempSession);
-      } else if (type === "grid-course" && session) {
+      } else if (type === "grid-block" && session) {
         console.log("Starting drag of grid block:", session);
         startDragOperation(session);
       } else {
@@ -58,20 +106,6 @@ const Layout = ({ children }: LayoutProps) => {
     try {
       const { active, over } = event;
 
-      console.log("=== Drag End ===");
-      console.log("Active:", {
-        id: active?.id,
-        type: active?.data.current?.type,
-        course: active?.data.current?.course,
-        session: active?.data.current?.session,
-        data: active?.data.current
-      });
-      console.log("Over:", {
-        id: over?.id,
-        type: over?.data.current?.type,
-        data: over?.data.current
-      });
-
       if (!active || !over) {
         console.log("No active or over target - ending drag");
         return;
@@ -80,24 +114,18 @@ const Layout = ({ children }: LayoutProps) => {
       const dragData = active.data.current;
       const overData = over.data.current;
 
-      console.log("Processing drag end:", { dragData, overData });
-
       // Handle pool reordering
       if (dragData?.type === "pool" && overData?.type === "pool-slot") {
-        console.log("Reordering pools:", { activeId: active.id, overId: over.id });
         reorderPools(active.id as string, over.id as string);
         return;
       }
 
       // Handle course dragging
       if (dragData?.type === "grid-course" || dragData?.type === "bank-block") {
-        console.log("Processing course drop:", { dragType: dragData.type });
-
         // 1) Dropped onto the Course Bank → delete
         if (over.id === "course-bank" && dragData?.type === "grid-course") {
           const session = dragData.session;
           if (session?.id) {
-            console.log("Deleting session dropped on bank:", session.id);
             deleteSession(session.id);
           }
         }
@@ -105,7 +133,24 @@ const Layout = ({ children }: LayoutProps) => {
         else if (overData?.type === "pool-day-interval") {
           const { poolId, day, startMinute } = overData;
           
-          console.log("Drop target info:", { poolId, day, startMinute });
+          // Calculate the offset from the pointer position to the top of the dragged element
+          const dragRect = active.rect.current;
+          const pointerY = (event.activatorEvent as MouseEvent).clientY;
+          const offsetY = pointerY - dragRect.initial.top;
+          
+          // Convert offset to minutes (60 minutes = GRID_HOUR_HEIGHT pixels)
+          const offsetMinutes = Math.round((offsetY / 60) * scale);
+          
+          // Adjust the start minute by subtracting the offset
+          const adjustedStartMinute = startMinute - offsetMinutes;
+          
+          console.log("Drop calculation:", {
+            startMinute,
+            offsetY,
+            offsetMinutes,
+            adjustedStartMinute,
+            scale
+          });
           
           const targetPool = getPool(poolId);
           if (!targetPool) {
@@ -113,42 +158,21 @@ const Layout = ({ children }: LayoutProps) => {
             return;
           }
 
-          if (dragData?.type === "bank-block" && dragData.course) {
-            console.log("Creating new session from bank block");
+          if (dragData?.type === "bank-block" && dragData.courseId) {
             createSession(
-              dragData.course.id,
+              dragData.courseId,
               poolId,
               day as DayOfWeek,
-              startMinute,
-              startMinute + 60
+              adjustedStartMinute,
+              adjustedStartMinute + DEFAULT_SESSION_DURATION
             );
           } else if (dragData?.type === "grid-course" && dragData.session) {
             const duration = dragData.session.end - dragData.session.start;
-            const roundedStart = Math.round(startMinute / 15) * 15;
-            const roundedEnd = Math.round((startMinute + duration) / 15) * 15;
-            
-            console.log("=== Debug Grid Block Move ===");
-            console.log("Original session:", dragData.session);
-            console.log("Drop target:", { poolId, day, startMinute });
-            console.log("Calculated times:", {
-              roundedStart,
-              roundedEnd,
-              duration,
-              originalStart: dragData.session.start,
-              originalEnd: dragData.session.end
-            });
-            
             updateSession(dragData.session.id, {
               poolId,
               day: day as DayOfWeek,
-              start: roundedStart,
-              end: roundedEnd
-            });
-
-            // Log the session after update
-            console.log("Session after update:", {
-              id: dragData.session.id,
-              updatedSession: sessions.find(s => s.id === dragData.session.id)
+              start: adjustedStartMinute,
+              end: adjustedStartMinute + duration
             });
           }
         }

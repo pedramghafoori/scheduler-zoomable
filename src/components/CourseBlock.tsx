@@ -1,10 +1,13 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useState, useEffect, useRef } from "react";
 import { Session, DayOfWeek } from "@/lib/types";
 import { useScheduleStore } from "@/stores/scheduleStore";
 import { formatTime, getContrastText, timeToYPos } from "@/lib/utils";
 import { DEFAULT_SESSION_DURATION } from "@/lib/constants";
 import { snapToGrid, yPosToTime } from "@/lib/utils";
 import { useDraggable } from '@dnd-kit/core';
+import { useWhiteboardStore } from "@/stores/whiteboardStore";
+import { cn } from "@/lib/utils";
+import { clientYToMinutes } from "@/lib/position";
 
 interface CourseBlockProps {
   courseId: string;
@@ -13,12 +16,21 @@ interface CourseBlockProps {
   index?: number;
   attributes?: any;
   listeners?: any;
+  isResizable?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+  children?: React.ReactNode;
 }
 
 const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
-  ({ courseId, session, isGrid = false, index = 0, attributes, listeners }, ref) => {
+  ({ courseId, session, isGrid = false, index = 0, attributes, listeners, isResizable = false, className = "", style = {} }, ref) => {
     const scheduleStore = useScheduleStore();
+    const { transformState } = useWhiteboardStore();
+    const scale = transformState?.scale || 1;
     const [isResizing, setIsResizing] = useState(false);
+    const resizeStartY = useRef(0);
+    const sessionStartY = useRef(0);
+    const currentSession = useRef<string | null>(null);
     
     const {
       attributes: dragAttributes,
@@ -61,50 +73,46 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
       userSelect: 'none' as const,
     } : {};
 
-    const onResizeMouseDown = (e: React.MouseEvent) => {
+    const handleResizeMouseDown = (e: React.MouseEvent, sessionId: string) => {
       e.stopPropagation();
-      e.preventDefault();
+      const session = scheduleStore.sessions.find(s => s.id === sessionId);
       if (!session) return;
+
       setIsResizing(true);
-      const startY = e.clientY;
-      const startEnd = session.end;
-      let currentEnd = startEnd;
+      resizeStartY.current = e.clientY;
+      sessionStartY.current = session.end;
+      currentSession.current = sessionId;
 
-      const move = (me: MouseEvent) => {
-        me.stopPropagation();
-        me.preventDefault();
-        const delta = me.clientY - startY;
-        const tentative = startEnd + delta;
-        const snapped = yPosToTime(snapToGrid(tentative));
-        if (snapped > session.start) {
-          currentEnd = snapped;
-          // Update visual position only during drag
-          const resizeElement = me.target as HTMLElement;
-          const courseBlock = resizeElement.closest('.course-block-wrapper') as HTMLElement;
-          if (courseBlock) {
-            courseBlock.style.height = `${(currentEnd - session.start) / 60 * 60}px`;
-          }
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isResizing || !currentSession.current) return;
+
+        const session = scheduleStore.sessions.find(s => s.id === currentSession.current);
+        if (!session) return;
+
+        const delta = (e.clientY - resizeStartY.current) / scale;
+        const newEnd = clientYToMinutes(sessionStartY.current + delta, scale);
+        
+        if (newEnd > session.start) {
+          scheduleStore.updateSession(session.id, { end: newEnd });
         }
       };
 
-      const up = (me: MouseEvent) => {
-        me.stopPropagation();
-        me.preventDefault();
+      const handleMouseUp = () => {
         setIsResizing(false);
-        // Only update the session when the drag is complete
-        if (currentEnd !== startEnd && currentEnd > session.start) {
-          scheduleStore.updateSession(session.id, { end: currentEnd });
-        }
-        window.removeEventListener("mousemove", move);
-        window.removeEventListener("mouseup", up);
+        currentSession.current = null;
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
       };
 
-      window.addEventListener("mousemove", move);
-      window.addEventListener("mouseup", up);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
       e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top;
+      e.currentTarget.setAttribute('data-drag-offset-y', offsetY.toString());
       dragListeners?.onPointerDown?.(e);
     };
 
@@ -113,8 +121,11 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
         <div
           ref={setDragNodeRef}
           {...(isResizing ? {} : dragAttributes)}
-          {...(isResizing ? {} : dragListeners)}
-          className="course-block-wrapper relative rounded-md select-none"
+          onPointerDown={handlePointerDown}
+          className={cn(
+            "course-block-wrapper relative rounded-md select-none",
+            className
+          )}
           style={{ 
             ...gridStyle, 
             ...bankStyle,
@@ -122,6 +133,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
             opacity: isDragging ? 0.8 : 1,
             transition: 'transform 0.2s, opacity 0.2s',
             cursor: isResizing ? 'ns-resize' : 'grab',
+            ...style,
           }}
         >
           <div 
@@ -159,7 +171,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onResizeMouseDown(e);
+              handleResizeMouseDown(e, session.id);
             }}
             style={{
               pointerEvents: 'auto',

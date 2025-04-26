@@ -55,32 +55,39 @@ const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
   });
   const { isDragging } = useDragStore();
 
-  useEffect(() => {
-    if (isBlockDragging) {
-      console.log("Block drag started:", {
-        sessionId: session.id,
-        start: session.start,
-        end: session.end,
-      });
-    }
-  }, [isBlockDragging, session]);
-
-  const handlePointerEvent = (e: React.PointerEvent) => {
+  const handlePointerDown = (e: React.PointerEvent) => {
     if (isDragging || isBlockDragging) {
-      e.stopPropagation();      // still stop bubbling to the white‑board
-      // no preventDefault here – allows continuous drag/resize
+      e.stopPropagation();
     }
+    
+    // Calculate offset from the top of the block
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top;
+    
+    // Store the offset in a data attribute on the draggable element
+    e.currentTarget.setAttribute('data-drag-offset-y', offsetY.toString());
+    
+    // Call the original listeners
+    listeners?.onPointerDown?.(e);
   };
 
   return (
     <div
       ref={setNodeRef}
       {...attributes}
-      {...listeners}
-      onPointerDown={handlePointerEvent}
-      onPointerMove={handlePointerEvent}
-      onPointerUp={handlePointerEvent}
-      onPointerCancel={handlePointerEvent}
+      onPointerDown={handlePointerDown}
+      onPointerMove={(e) => {
+        if (isDragging || isBlockDragging) {
+          e.stopPropagation();
+        }
+        listeners?.onPointerMove?.(e);
+      }}
+      onPointerUp={(e) => {
+        if (isDragging || isBlockDragging) {
+          e.stopPropagation();
+        }
+        listeners?.onPointerUp?.(e);
+      }}
       style={{
         position: 'absolute',
         top: `${topPx}px`,
@@ -466,13 +473,6 @@ const DroppableInterval = ({ id, poolId, day, startMinute, top, height, width, c
     },
   });
 
-  // Log when an interval is being hovered over
-  useEffect(() => {
-    if (isOver) {
-      // No need to log hover state
-    }
-  }, [isOver, id, poolId, day, startMinute, top, height]);
-
   return (
     <div
       ref={setNodeRef}
@@ -486,10 +486,8 @@ const DroppableInterval = ({ id, poolId, day, startMinute, top, height, width, c
         height: `${height}px`,
         zIndex: isOver ? 20 : 5,
         transition: 'background-color 0.1s ease, border-color 0.1s ease',
-        pointerEvents: 'auto',
-      }}
-      onPointerEnter={() => {
-        // No need to log every pointer enter event
+        pointerEvents: 'none', // Change this to none so it detects the dragged block's top edge
+        transform: 'translate3d(0, 0, 0)', // Force GPU acceleration
       }}
     />
   );
