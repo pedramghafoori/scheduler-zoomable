@@ -4,13 +4,63 @@ import PoolNavigator from "@/components/PoolNavigator";
 import CourseBlock from "@/components/CourseBlock";
 import AddPoolModal from "@/components/AddPoolModal";
 import Whiteboard from "@/components/Whiteboard";
-import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, closestCenter, pointerWithin } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, CollisionDetection, pointerWithin, rectIntersection, DroppableContainer, Active } from '@dnd-kit/core';
+import type { ClientRect } from '@dnd-kit/core';
 import { useScheduleStore } from "@/stores/scheduleStore";
 import { useDragStore } from "@/stores/dragStore";
 import { Course, DayOfWeek } from "@/lib/types";
 import { HOUR_HEIGHT } from "@/lib/constants";
 import { useRef, useState } from "react";
 
+/**
+ * IMPORTANT: This custom collision detection is crucial for correct course block positioning
+ * 
+ * Why this is necessary:
+ * 1. Course blocks need to snap precisely to 15-minute intervals
+ * 2. The position where a course starts should be determined by its top edge, not its center
+ * 3. Using center-point or full-rectangle collision would cause positioning errors due to varying block heights
+ * 
+ * How it works:
+ * - Creates a 1px tall rectangle at the top edge of the dragged course block
+ * - Only detects collisions with this thin top edge
+ * - Ensures the highlighted drop zone exactly matches where the course will start
+ * 
+ * DO NOT MODIFY OR REPLACE THIS WITH OTHER COLLISION DETECTION STRATEGIES
+ * Using other methods (like closestCenter or pointerWithin) will break the precise interval snapping
+ */
+const topEdgeCollision: CollisionDetection = ({
+  active,
+  collisionRect,
+  droppableRects,
+  droppableContainers,
+}) => {
+  if (!collisionRect) return [];
+
+  // Create a thin rectangle at the top edge of the dragging element
+  const topEdgeRect: ClientRect = {
+    ...collisionRect,
+    height: 1, // Make it just 1px tall to ensure we only detect collisions at the top edge
+  };
+
+  // Find intersecting droppables using the top edge rectangle
+  return droppableContainers
+    .filter((container) => {
+      const rect = droppableRects.get(container.id);
+      if (!rect) return false;
+      
+      // Check if the top edge intersects with this droppable
+      return (
+        topEdgeRect.left < rect.right &&
+        topEdgeRect.right > rect.left &&
+        topEdgeRect.top < rect.bottom &&
+        topEdgeRect.bottom > rect.top
+      );
+    })
+    .map((container) => ({
+      id: container.id,
+      data: { droppableContainer: container },
+    }));
+};
 
 const Index = () => {
   const { createSession, updatePoolPosition, getPool, updateSession } = useScheduleStore((state) => ({
@@ -110,15 +160,9 @@ const Index = () => {
           toPool: newPoolId,
           newDay,
           newStart: startMinute,
-          newEnd: startMinute + duration,
+          duration
         });
-        console.log("Calling updateSession with:", {
-          id: session.id,
-          poolId: newPoolId,
-          day: newDay,
-          start: startMinute,
-          end: startMinute + duration,
-        });
+
         updateSession(session.id, {
           poolId: newPoolId,
           day: newDay as DayOfWeek,
@@ -203,7 +247,7 @@ const Index = () => {
           setActiveDragItem(null);
           endDragOperation();
         }}
-        collisionDetection={closestCenter}
+        collisionDetection={topEdgeCollision}
       >
         <CourseBank />
         <PoolNavigator />
