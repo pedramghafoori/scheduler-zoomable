@@ -1,10 +1,21 @@
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useScheduleStore } from "@/stores/scheduleStore";
+import EditCourseDialog from "@/components/EditCourseDialog";
+import { Course } from "@/lib/types";
+import { Pencil, Trash2 } from "lucide-react";
 
 const Manage = () => {
-  const { pools, courses } = useScheduleStore();
+  const { pools, courses, updateCourse, removeCourse } = useScheduleStore();
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+
+  const handleDeleteCourse = (courseId: string) => {
+    if (window.confirm("Are you sure you want to delete this course? This will also remove all scheduled sessions for this course.")) {
+      removeCourse(courseId);
+    }
+  };
 
   return (
     <Layout>
@@ -56,17 +67,37 @@ const Manage = () => {
                 {courses.map((course) => (
                   <div
                     key={course.id}
-                    className="border p-4 rounded-md flex items-center"
+                    className="border p-4 rounded-md flex items-center justify-between group"
                   >
-                    <div
-                      className="w-4 h-4 rounded-full mr-3"
-                      style={{ backgroundColor: course.color }}
-                    ></div>
-                    <div>
-                      <h3 className="font-bold">{course.title}</h3>
-                      <p className="text-sm text-gray-500">
-                        {course.totalHours} hours total
-                      </p>
+                    <div className="flex items-center">
+                      <div
+                        className="w-4 h-4 rounded-full mr-3"
+                        style={{ backgroundColor: course.color }}
+                      ></div>
+                      <div>
+                        <h3 className="font-bold">{course.name}</h3>
+                        <p className="text-sm text-gray-500">
+                          {course.totalHours} hours total
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditingCourse(course)}
+                        className="h-8 w-8"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteCourse(course.id)}
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -78,7 +109,7 @@ const Manage = () => {
             </CardContent>
             <CardFooter>
               <p className="text-sm text-gray-500">
-                Course management will be expanded in future updates
+                Add new courses from the Scheduler page
               </p>
             </CardFooter>
           </Card>
@@ -92,6 +123,13 @@ const Manage = () => {
           </p>
         </div>
       </div>
+
+      <EditCourseDialog
+        course={editingCourse}
+        open={editingCourse !== null}
+        onOpenChange={(open) => !open && setEditingCourse(null)}
+        onSave={updateCourse}
+      />
     </Layout>
   );
 };

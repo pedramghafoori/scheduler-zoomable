@@ -8,12 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { getRemainingHours } from "@/lib/utils";
+import { Settings } from "lucide-react";
+import EditCourseDialog from "@/components/EditCourseDialog";
+import { Course } from "@/lib/types";
+import { ColorPicker } from "@/components/ui/color-picker";
 
 const CourseBank = () => {
-  const { courses, getScheduledMinutesForCourse, addCourse } = useScheduleStore();
+  const { courses, getScheduledMinutesForCourse, addCourse, updateCourse } = useScheduleStore();
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [newCourseTitle, setNewCourseTitle] = useState("");
   const [newCourseTotalHours, setNewCourseTotalHours] = useState(1);
+  const [selectedColor, setSelectedColor] = useState("#ef4444");
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
   const { setNodeRef, isOver } = useDroppable({
     id: "course-bank",
@@ -24,9 +30,10 @@ const CourseBank = () => {
 
   const handleAddCourse = () => {
     if (newCourseTitle.trim() && newCourseTotalHours > 0) {
-      addCourse(newCourseTitle.trim(), newCourseTotalHours);
+      addCourse(newCourseTitle.trim(), newCourseTotalHours, selectedColor);
       setNewCourseTitle("");
       setNewCourseTotalHours(1);
+      setSelectedColor("#ef4444");
       setIsAddingCourse(false);
     }
   };
@@ -52,10 +59,20 @@ const CourseBank = () => {
           return (
             <div key={course.id} className="mb-6">
               <div className="flex justify-between items-center mb-2">
-                <h3 className="font-medium">{course.title}</h3>
-                <span className="text-sm text-gray-500">
-                  {remainingHours} h remaining
-                </span>
+                <h3 className="font-medium">{course.name}</h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">
+                    {remainingHours} h remaining
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setEditingCourse(course)}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               
               {remainingBlocks > 0 && (
@@ -101,6 +118,11 @@ const CourseBank = () => {
                   onChange={(e) => setNewCourseTotalHours(parseInt(e.target.value) || 1)}
                 />
               </div>
+              <ColorPicker
+                label="Course Color"
+                value={selectedColor}
+                onChange={setSelectedColor}
+              />
               <Button onClick={handleAddCourse} className="w-full">
                 Add Course
               </Button>
@@ -108,6 +130,13 @@ const CourseBank = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      <EditCourseDialog
+        course={editingCourse}
+        open={editingCourse !== null}
+        onOpenChange={(open) => !open && setEditingCourse(null)}
+        onSave={updateCourse}
+      />
     </div>
   );
 };

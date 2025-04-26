@@ -21,9 +21,7 @@ export interface PoolDay {
 export interface Course {
   id: string;
   name: string;
-  day: DayOfWeek;
-  startTime: number;
-  endTime: number;
+  totalHours: number;
   color?: string;
 }
 

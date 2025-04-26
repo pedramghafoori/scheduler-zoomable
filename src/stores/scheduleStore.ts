@@ -52,6 +52,8 @@ interface ScheduleState {
   pools: Pool[];
   courses: Course[];
   sessions: Session[];
+  actionHistory: { state: { pools: Pool[]; courses: Course[]; sessions: Session[] }; action: string }[];
+  currentActionIndex: number;
   
   // Actions
   addPool: (title: string, location: string, days: DayOfWeek[]) => void;
@@ -60,11 +62,19 @@ interface ScheduleState {
   updatePoolPosition: (poolId: string, x: number, y: number) => void;
   updatePoolTimeRange: (poolId: string, startHour: number, endHour: number) => void;
   reorderPools: (activeId: string, overId: string) => void;
-  addCourse: (name: string, day: DayOfWeek, startTime: number, endTime: number) => void;
+  addCourse: (name: string, totalHours: number, color?: string) => void;
+  updateCourse: (courseId: string, updates: Partial<Course>) => void;
   createSession: (courseId: string, poolId: string, day: DayOfWeek, start: number, end: number) => string;
   updateSession: (id: string, updates: Partial<Session>) => void;
   deleteSession: (id: string) => void;
   removeCourse: (courseId: string) => void;
+  
+  // Undo/Redo
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  saveToHistory: (action: string) => void;
   
   // Computed
   getSessionsForPoolDay: (poolId: string, day: DayOfWeek) => Session[];
@@ -111,34 +121,26 @@ const INITIAL_POOLS: Pool[] = [
 const INITIAL_COURSES = [
   { 
     id: "course-1", 
-    name: "Bronze", 
-    day: "Monday" as DayOfWeek,
-    startTime: 8,
-    endTime: 10,
+    name: "Bronze",
+    totalHours: 2,
     color: "#ef4444" 
   },
   { 
     id: "course-2", 
-    name: "Silver", 
-    day: "Wednesday" as DayOfWeek,
-    startTime: 9,
-    endTime: 11,
+    name: "Silver",
+    totalHours: 2,
     color: "#6366f1" 
   },
   { 
     id: "course-3", 
-    name: "Gold", 
-    day: "Friday" as DayOfWeek,
-    startTime: 10,
-    endTime: 12,
+    name: "Gold",
+    totalHours: 2,
     color: "#f59e0b" 
   },
   { 
     id: "course-4", 
-    name: "NL", 
-    day: "Tuesday" as DayOfWeek,
-    startTime: 8,
-    endTime: 12,
+    name: "NL",
+    totalHours: 4,
     color: "#10b981" 
   },
 ];
@@ -149,6 +151,58 @@ export const useScheduleStore = create<ScheduleState>()(
       pools: INITIAL_POOLS,
       courses: INITIAL_COURSES,
       sessions: [],
+      actionHistory: [],
+      currentActionIndex: -1,
+
+      // Helper function to save state to history
+      saveToHistory: (action: string) => {
+        const currentState = {
+          pools: get().pools,
+          courses: get().courses,
+          sessions: get().sessions,
+        };
+        
+        set((state) => {
+          // If we're not at the end of history, remove future actions
+          const newHistory = state.currentActionIndex < state.actionHistory.length - 1
+            ? state.actionHistory.slice(0, state.currentActionIndex + 1)
+            : state.actionHistory;
+            
+          return {
+            actionHistory: [...newHistory, { state: currentState, action }],
+            currentActionIndex: newHistory.length,
+          };
+        });
+      },
+
+      undo: () => {
+        set((state) => {
+          if (state.currentActionIndex > 0) {
+            const previousState = state.actionHistory[state.currentActionIndex - 1];
+            return {
+              ...previousState.state,
+              currentActionIndex: state.currentActionIndex - 1,
+            };
+          }
+          return state;
+        });
+      },
+
+      redo: () => {
+        set((state) => {
+          if (state.currentActionIndex < state.actionHistory.length - 1) {
+            const nextState = state.actionHistory[state.currentActionIndex + 1];
+            return {
+              ...nextState.state,
+              currentActionIndex: state.currentActionIndex + 1,
+            };
+          }
+          return state;
+        });
+      },
+
+      canUndo: () => get().currentActionIndex > 0,
+      canRedo: () => get().currentActionIndex < get().actionHistory.length - 1,
 
       addPool: (title, location, days) => {
         const newPoolId = nanoid();
@@ -204,29 +258,37 @@ export const useScheduleStore = create<ScheduleState>()(
         const finalX = positionAdjusted ? targetX : (targetX - newPoolWidth / 2);
         const finalY = positionAdjusted ? targetY : (targetY - newPoolHeight / 2);
 
-        set((state) => ({
-          pools: [
-            ...state.pools,
-            {
-              id: newPoolId,
-              title,
-              location,
-              days: poolDays,
-              startHour: DEFAULT_START_HOUR,
-              endHour: DEFAULT_END_HOUR,
-              x: finalX,
-              y: finalY,
-              courses: [], // Initialize empty courses array
-            },
-          ],
-        }));
+        set((state) => {
+          const newState = {
+            pools: [
+              ...state.pools,
+              {
+                id: newPoolId,
+                title,
+                location,
+                days: poolDays,
+                startHour: DEFAULT_START_HOUR,
+                endHour: DEFAULT_END_HOUR,
+                x: finalX,
+                y: finalY,
+                courses: [],
+              },
+            ],
+          };
+          get().saveToHistory('addPool');
+          return newState;
+        });
       },
 
       removePool: (poolId) => {
-        set((state) => ({
-          pools: state.pools.filter((pool) => pool.id !== poolId),
-          sessions: state.sessions.filter((session) => session.poolId !== poolId),
-        }));
+        set((state) => {
+          const newState = {
+            pools: state.pools.filter((pool) => pool.id !== poolId),
+            sessions: state.sessions.filter((session) => session.poolId !== poolId),
+          };
+          get().saveToHistory('removePool');
+          return newState;
+        });
       },
 
       updatePoolDays: (poolId, selectedDays) => {
@@ -276,22 +338,38 @@ export const useScheduleStore = create<ScheduleState>()(
         });
       },
 
-      addCourse: (name: string, day: DayOfWeek, startTime: number, endTime: number) => {
+      addCourse: (name: string, totalHours: number, color?: string) => {
         const colorIndex = get().courses.length % COURSE_COLORS.length;
         
-        set((state) => ({
-          courses: [
-            ...state.courses,
-            {
-              id: nanoid(),
-              name,
-              day,
-              startTime,
-              endTime,
-              color: COURSE_COLORS[colorIndex],
-            },
-          ],
-        }));
+        set((state) => {
+          const newState = {
+            ...state,
+            courses: [
+              ...state.courses,
+              {
+                id: nanoid(),
+                name,
+                totalHours,
+                color: color || COURSE_COLORS[colorIndex],
+              },
+            ],
+          };
+          get().saveToHistory('addCourse');
+          return newState;
+        });
+      },
+
+      updateCourse: (courseId: string, updates: Partial<Course>) => {
+        set((state) => {
+          const newState = {
+            ...state,
+            courses: state.courses.map((course) =>
+              course.id === courseId ? { ...course, ...updates } : course
+            ),
+          };
+          get().saveToHistory('updateCourse');
+          return newState;
+        });
       },
 
       createSession: (courseId, poolId, day, start, end) => {

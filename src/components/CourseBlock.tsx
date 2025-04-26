@@ -28,10 +28,9 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
     } = useDraggable({
       id: isGrid ? `grid-course-${session?.id}` : `bank-course-${courseId}`,
       data: {
-        type: isGrid ? 'grid-course' : 'course',
-        course: scheduleStore.getCourse(courseId),
+        type: isGrid ? 'grid-block' : 'bank-block',
+        courseId,
         session,
-        from: isGrid ? 'grid' : 'bank'
       },
     });
 
@@ -116,7 +115,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
         <div 
           className={`course-block-body p-2 h-full flex flex-col`}
         >
-          <div className="font-medium truncate">{course.title}</div>
+          <div className="font-medium truncate">{course.name}</div>
           {isGrid && session && (
             <div className="text-xs mt-auto">
               {formatTime(session.start)} - {formatTime(session.end)}
