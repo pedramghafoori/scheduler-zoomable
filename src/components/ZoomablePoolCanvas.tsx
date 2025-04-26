@@ -54,18 +54,25 @@ const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
     <div
       ref={setNodeRef}
       {...attributes}
-      {...listeners}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        // @ts-ignore
+        listeners?.onPointerDown?.(e);
+      }}
+      onPointerMove={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
       style={{
         position: 'absolute',
         top: `${topPx}px`,
         left: 0,
         width: '100%',
-        height: `${(session.end - session.start) / 60 * 60}px`, // keep same calc
+        height: `${(session.end - session.start) / 60 * 60}px`,
         transform: transform
           ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
           : undefined,
         pointerEvents: 'auto',
-        zIndex: 10,
+        zIndex: 15,
+        cursor: 'grab',
       }}
     >
       <CourseBlock
@@ -476,7 +483,7 @@ const DroppableInterval = ({ id, poolId, day, startMinute, top, height, width, c
         width: `${width}px`,
         top: `${top}px`,
         height: `${height}px`,
-        zIndex: 10,
+        zIndex: 5,
         transition: 'background-color 0.1s ease, border-color 0.1s ease',
         pointerEvents: 'auto',
       }}

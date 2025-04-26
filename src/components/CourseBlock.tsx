@@ -37,14 +37,10 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
     const course = scheduleStore.getCourse(courseId);
     if (!course) return null;
 
-    const HEADER_HEIGHT = 40;
-
-    const gridStyle = isGrid && session ? {
-      position: 'absolute' as const,
-      top: `${timeToYPos(session.start) + HEADER_HEIGHT}px`,
-      height: `${session.end - session.start}px`,
-      width: 'calc(100% - 8px)',
-      left: '4px',
+    const gridStyle = isGrid ? {
+      position: 'relative' as const,
+      height: '100%',
+      width: '100%',
       backgroundColor: course.color || '#4f46e5',
       color: getContrastText(course.color || '#4f46e5'),
       zIndex: isDragging ? 1000 : 10,
@@ -102,7 +98,7 @@ const CourseBlock = forwardRef<HTMLDivElement, CourseBlockProps>(
         ref={setDragNodeRef}
         {...dragAttributes}
         {...dragListeners}
-        className={`course-block-wrapper ${isGrid ? "absolute" : "relative"} rounded-md select-none`}
+        className="course-block-wrapper relative rounded-md select-none"
         style={{ 
           ...gridStyle, 
           ...bankStyle,
