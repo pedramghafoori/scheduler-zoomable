@@ -41,7 +41,7 @@ const Layout = ({ children }: LayoutProps) => {
         };
         console.log("Created temp session for bank block:", tempSession);
         startDragOperation(tempSession);
-      } else if (type === "grid-block" && session) {
+      } else if (type === "grid-course" && session) {
         console.log("Starting drag of grid block:", session);
         startDragOperation(session);
       } else {
@@ -90,11 +90,11 @@ const Layout = ({ children }: LayoutProps) => {
       }
 
       // Handle course dragging
-      if (dragData?.type === "grid-block" || dragData?.type === "bank-block") {
+      if (dragData?.type === "grid-course" || dragData?.type === "bank-block") {
         console.log("Processing course drop:", { dragType: dragData.type });
 
         // 1) Dropped onto the Course Bank → delete
-        if (over.id === "course-bank" && dragData?.type === "grid-block") {
+        if (over.id === "course-bank" && dragData?.type === "grid-course") {
           const session = dragData.session;
           if (session?.id) {
             console.log("Deleting session dropped on bank:", session.id);
@@ -122,7 +122,7 @@ const Layout = ({ children }: LayoutProps) => {
               startMinute,
               startMinute + 60
             );
-          } else if (dragData?.type === "grid-block" && dragData.session) {
+          } else if (dragData?.type === "grid-course" && dragData.session) {
             const duration = dragData.session.end - dragData.session.start;
             const roundedStart = Math.round(startMinute / 15) * 15;
             const roundedEnd = Math.round((startMinute + duration) / 15) * 15;

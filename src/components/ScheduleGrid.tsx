@@ -85,7 +85,7 @@ const ScheduleGrid = () => {
       };
       
       startDrag(tempSession); // Assume middle of the block (60px/2)
-    } else if (type === "grid-block" && session) {
+    } else if (type === "grid-course" && session) {
       startDrag(session);
     }
   };
@@ -108,7 +108,7 @@ const ScheduleGrid = () => {
     const dragData = active.data.current;
 
     // 1) Dropped onto the Course Bank → delete
-    if (over.id === "course-bank" && dragData?.type === "grid-block") {
+    if (over.id === "course-bank" && dragData?.type === "grid-course") {
       const session = dragData.session;
       if (session?.id) {
         console.log("Deleting session:", session.id);
@@ -134,7 +134,7 @@ const ScheduleGrid = () => {
           start,
           start + DEFAULT_SESSION_DURATION
         );
-      } else if (dragData?.type === "grid-block") {
+      } else if (dragData?.type === "grid-course") {
         const { session } = dragData;
         const duration = session.end - session.start;
         console.log("Moving grid‑block", { sessionId: session.id, start });

@@ -94,7 +94,7 @@ const Index = () => {
 
       // --- Move an existing grid course block within / between pools ---
       if (
-        (activeData?.type === 'grid-block' || activeData?.type === 'grid-course') &&  // dragged item is a block on the grid
+        activeData?.type === 'grid-course' &&  // dragged item is a block on the grid
         overData?.type === 'pool-day-interval' &&             // dropped on a 15‑min interval cell
         activeData.session                                    // session object exists
       ) {

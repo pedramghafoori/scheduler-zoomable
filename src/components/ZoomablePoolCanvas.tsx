@@ -49,7 +49,7 @@ const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
   const { setNodeRef, listeners, attributes, transform, isDragging: isBlockDragging } = useDraggable({
     id: `grid-course-${session.id}`,
     data: { 
-      type: 'grid-block',
+      type: 'grid-course',
       session,
     },
   });
@@ -67,8 +67,8 @@ const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
 
   const handlePointerEvent = (e: React.PointerEvent) => {
     if (isDragging || isBlockDragging) {
-      e.stopPropagation();
-      e.preventDefault();
+      e.stopPropagation();      // still stop bubbling to the white‑board
+      // no preventDefault here – allows continuous drag/resize
     }
   };
 
