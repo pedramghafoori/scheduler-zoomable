@@ -54,13 +54,23 @@ const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
     <div
       ref={setNodeRef}
       {...attributes}
-      onPointerDown={(e) => {
+      {...listeners}
+      onPointerDownCapture={(e) => {
+        e.stopPropagation();
+        // ⬇️  also stop *all* further propagation for this event
+        // @ts-ignore
+        e.nativeEvent.stopImmediatePropagation?.();
+      }}
+      onPointerMoveCapture={(e) => {
         e.stopPropagation();
         // @ts-ignore
-        listeners?.onPointerDown?.(e);
+        e.nativeEvent.stopImmediatePropagation?.();
       }}
-      onPointerMove={(e) => e.stopPropagation()}
-      onPointerUp={(e) => e.stopPropagation()}
+      onPointerUpCapture={(e) => {
+        e.stopPropagation();
+        // @ts-ignore
+        e.nativeEvent.stopImmediatePropagation?.();
+      }}
       style={{
         position: 'absolute',
         top: `${topPx}px`,
@@ -271,7 +281,6 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
           height={stageInternalHeight} // Use full 24h height here
           offsetY={startHour * GRID_HOUR_HEIGHT}
           className="bg-white absolute top-0 left-0 pointer-events-none"
-          listening={false}
         >
           <Layer>
             {/* Hour Labels Area - Background to match visible area height */}

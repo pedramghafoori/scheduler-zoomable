@@ -17,6 +17,9 @@ interface DragState {
   /** True if a pool canvas is currently being dragged */
   isPoolDragging: boolean;
 
+  /** Manually set/clear the global dragging flag (for drags not tied to a Session) */
+  setIsDragging: (v: boolean) => void;
+
   /** Begin dragging a session */
   startDrag: (session: Session) => void;
 
@@ -42,6 +45,8 @@ export const useDragStore = create<DragState>((set) => ({
   pointerY: null,
   whiteboardScale: 1, // Default scale is 1
   isPoolDragging: false,
+
+  setIsDragging: (v) => set({ isDragging: v }),
 
   startDrag: (session) =>
     set({

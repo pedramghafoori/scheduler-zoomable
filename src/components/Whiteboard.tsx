@@ -60,9 +60,10 @@ const Controls = () => {
 
 const Whiteboard = () => {
   const pools = useScheduleStore((state) => state.pools);
-  const { updateScale, isPoolDragging } = useDragStore((state) => ({
+  const { updateScale, isPoolDragging, isDragging } = useDragStore((state) => ({
     updateScale: state.updateScale,
     isPoolDragging: state.isPoolDragging,
+    isDragging: state.isDragging,
   }));
   const { setInstanceRef, setTransformState } = useWhiteboardStore((state) => ({
     setInstanceRef: state.setInstanceRef,
@@ -146,10 +147,10 @@ const Whiteboard = () => {
         centerOnInit={true}
         minScale={0.2}
         limitToBounds={false}
-        wheel={{ step: 0.1, disabled: isPoolDragging }}
-        panning={{ disabled: isPoolDragging }}
-        pinch={{ disabled: isPoolDragging }}
-        doubleClick={{ disabled: isPoolDragging }}
+        wheel={{ step: 0.1, disabled: isPoolDragging || isDragging }}
+        panning={{ disabled: isPoolDragging || isDragging }}
+        pinch={{ disabled: isPoolDragging || isDragging }}
+        doubleClick={{ disabled: isPoolDragging || isDragging }}
         onTransformed={(ref, state) => {
           if (!isPoolDragging) {
             setTransformState(state);

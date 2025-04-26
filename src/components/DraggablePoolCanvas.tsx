@@ -22,7 +22,7 @@ const DraggablePoolCanvas = ({ pool }: DraggablePoolCanvasProps) => {
   const whiteboardScale = useDragStore((state) => state.whiteboardScale);
 
   // Draggable hook for the main pool movement
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({
     id: `pool-${pool.id}`,
     data: {
       type: 'poolCanvas',
@@ -86,4 +86,4 @@ const DraggablePoolCanvas = ({ pool }: DraggablePoolCanvasProps) => {
   );
 };
 
-export default DraggablePoolCanvas; 
+export default DraggablePoolCanvas;

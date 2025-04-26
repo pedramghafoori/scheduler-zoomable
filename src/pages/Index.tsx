@@ -18,16 +18,18 @@ const Index = () => {
     getPool: state.getPool,
     updateSession: state.updateSession,
   }));
-  const { whiteboardScale, startPoolDrag, endPoolDrag } = useDragStore((state) => ({ 
+  const { whiteboardScale, startPoolDrag, endPoolDrag, setIsDragging } = useDragStore((state) => ({ 
     whiteboardScale: state.whiteboardScale,
     startPoolDrag: state.startPoolDrag,
     endPoolDrag: state.endPoolDrag,
+    setIsDragging: state.setIsDragging,
   }));
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const whiteboardContainerRef = useRef<HTMLDivElement>(null);
   const [activeDragItem, setActiveDragItem] = useState<any | null>(null);
 
   const handleDragStart = (event: DragStartEvent) => {
+    setIsDragging(true);                 // ← NEW
     const { active } = event;
     setActiveDragItem(active);
     console.log("Drag started:", { active });
@@ -37,6 +39,7 @@ const Index = () => {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    setIsDragging(false);                // ← NEW
     setActiveDragItem(null);
     const { active, over, delta } = event;
     
