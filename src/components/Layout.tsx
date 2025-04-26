@@ -15,7 +15,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const { startDragOperation, endDragOperation, pointerY } = useDragStore();
-  const { createSession, updateSession, deleteSession, reorderPools, getPool } = useScheduleStore();
+  const { createSession, updateSession, deleteSession, reorderPools, getPool, sessions } = useScheduleStore();
 
   const handleDragStart = (event: DragStartEvent) => {
     try {
@@ -63,7 +63,8 @@ const Layout = ({ children }: LayoutProps) => {
         id: active?.id,
         type: active?.data.current?.type,
         course: active?.data.current?.course,
-        session: active?.data.current?.session
+        session: active?.data.current?.session,
+        data: active?.data.current
       });
       console.log("Over:", {
         id: over?.id,
@@ -78,6 +79,8 @@ const Layout = ({ children }: LayoutProps) => {
 
       const dragData = active.data.current;
       const overData = over.data.current;
+
+      console.log("Processing drag end:", { dragData, overData });
 
       // Handle pool reordering
       if (dragData?.type === "pool" && overData?.type === "pool-slot") {
@@ -102,6 +105,8 @@ const Layout = ({ children }: LayoutProps) => {
         else if (overData?.type === "pool-day-interval") {
           const { poolId, day, startMinute } = overData;
           
+          console.log("Drop target info:", { poolId, day, startMinute });
+          
           const targetPool = getPool(poolId);
           if (!targetPool) {
             console.error("Target pool not found for ID:", poolId);
@@ -109,6 +114,7 @@ const Layout = ({ children }: LayoutProps) => {
           }
 
           if (dragData?.type === "bank-block" && dragData.course) {
+            console.log("Creating new session from bank block");
             createSession(
               dragData.course.id,
               poolId,
@@ -118,11 +124,31 @@ const Layout = ({ children }: LayoutProps) => {
             );
           } else if (dragData?.type === "grid-block" && dragData.session) {
             const duration = dragData.session.end - dragData.session.start;
+            const roundedStart = Math.round(startMinute / 15) * 15;
+            const roundedEnd = Math.round((startMinute + duration) / 15) * 15;
+            
+            console.log("=== Debug Grid Block Move ===");
+            console.log("Original session:", dragData.session);
+            console.log("Drop target:", { poolId, day, startMinute });
+            console.log("Calculated times:", {
+              roundedStart,
+              roundedEnd,
+              duration,
+              originalStart: dragData.session.start,
+              originalEnd: dragData.session.end
+            });
+            
             updateSession(dragData.session.id, {
               poolId,
               day: day as DayOfWeek,
-              start: startMinute,
-              end: startMinute + duration
+              start: roundedStart,
+              end: roundedEnd
+            });
+
+            // Log the session after update
+            console.log("Session after update:", {
+              id: dragData.session.id,
+              updatedSession: sessions.find(s => s.id === dragData.session.id)
             });
           }
         }
@@ -142,6 +168,7 @@ const Layout = ({ children }: LayoutProps) => {
         endDragOperation();
       }}
       collisionDetection={pointerWithin}
+      modifiers={[restrictToVerticalAxis]}
     >
       <div className="h-screen flex flex-col">
         <header className="bg-white border-b fixed top-0 left-0 right-0 z-30 shadow-sm">

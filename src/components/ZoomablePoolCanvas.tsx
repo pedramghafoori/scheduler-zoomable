@@ -46,17 +46,28 @@ interface GridCourseBlockProps {
 }
 
 const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
-  const { setNodeRef, listeners, attributes, transform } = useDraggable({
+  const { setNodeRef, listeners, attributes, transform, isDragging: isBlockDragging } = useDraggable({
     id: `grid-course-${session.id}`,
-    data: { type: 'grid-course', session },
+    data: { 
+      type: 'grid-block',
+      session,
+    },
   });
   const { isDragging } = useDragStore();
 
+  useEffect(() => {
+    if (isBlockDragging) {
+      console.log("Block drag started:", {
+        sessionId: session.id,
+        start: session.start,
+        end: session.end,
+      });
+    }
+  }, [isBlockDragging, session]);
+
   const handlePointerEvent = (e: React.PointerEvent) => {
-    // Only stop propagation if we're actually dragging
-    if (isDragging) {
+    if (isDragging || isBlockDragging) {
       e.stopPropagation();
-      // Prevent any other handlers from firing
       e.preventDefault();
     }
   };
@@ -80,8 +91,10 @@ const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
           ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
           : undefined,
         pointerEvents: 'auto',
-        zIndex: isDragging ? 100 : 15,
-        cursor: isDragging ? 'grabbing' : 'grab',
+        zIndex: isBlockDragging ? 100 : 15,
+        cursor: isBlockDragging ? 'grabbing' : 'grab',
+        opacity: isBlockDragging ? 0.5 : 1,
+        touchAction: 'none',
       }}
     >
       <CourseBlock
@@ -398,13 +411,6 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
               const intervals: JSX.Element[] = [];
               const intervalHeight = GRID_HOUR_HEIGHT / 4; // 15 minutes
 
-              console.log(`Creating intervals for ${dayOfWeek}:`, {
-                startMinuteAbs,
-                endMinuteAbs,
-                columnX,
-                intervalHeight
-              });
-
               for (let minute = startMinuteAbs; minute < endMinuteAbs; minute += 15) {
                 const intervalTop = (minute - startMinuteAbs) * (GRID_HOUR_HEIGHT / 60);
                 const intervalId = `pool-${pool.id}-day-${dayOfWeek}-minute-${minute}`;
@@ -455,48 +461,38 @@ const DroppableInterval = ({ id, poolId, day, startMinute, top, height, width, c
     data: {
       type: 'pool-day-interval',
       poolId,
-      day, // Just pass the day as is, without minute information
-      startMinute,
+      day,
+      startMinute: Math.round(startMinute / 15) * 15, // Ensure startMinute is rounded to nearest 15 minutes
     },
   });
 
   // Log when an interval is being hovered over
   useEffect(() => {
     if (isOver) {
-      console.log('Hovering over interval:', {
-        id,
-        poolId,
-        day,
-        startMinute,
-        top,
-        height,
-        // Add more detailed logging
-        dropData: {
-          type: 'pool-day-interval',
-          poolId,
-          day,
-          startMinute,
-        }
-      });
+      // No need to log hover state
     }
   }, [isOver, id, poolId, day, startMinute, top, height]);
 
   return (
     <div
       ref={setNodeRef}
-      data-interval-id={id} // Add data attribute for debugging
+      data-interval-id={id}
+      data-start-minute={startMinute}
       className={`absolute ${isOver ? 'bg-blue-200 bg-opacity-60 border border-blue-400' : ''}`}
       style={{
         left: `${columnX}px`,
         width: `${width}px`,
         top: `${top}px`,
         height: `${height}px`,
-        zIndex: 5,
+        zIndex: isOver ? 20 : 5,
         transition: 'background-color 0.1s ease, border-color 0.1s ease',
         pointerEvents: 'auto',
       }}
+      onPointerEnter={() => {
+        // No need to log every pointer enter event
+      }}
     />
   );
-}
+};
 
 export default ZoomablePoolCanvas;

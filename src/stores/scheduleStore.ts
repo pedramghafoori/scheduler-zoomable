@@ -157,9 +157,9 @@ export const useScheduleStore = create<ScheduleState>()(
       // Helper function to save state to history
       saveToHistory: (action: string) => {
         const currentState = {
-          pools: get().pools,
-          courses: get().courses,
-          sessions: get().sessions,
+          pools: [...get().pools],
+          courses: [...get().courses],
+          sessions: [...get().sessions],
         };
         
         set((state) => {
@@ -180,7 +180,10 @@ export const useScheduleStore = create<ScheduleState>()(
           if (state.currentActionIndex > 0) {
             const previousState = state.actionHistory[state.currentActionIndex - 1];
             return {
-              ...previousState.state,
+              pools: [...previousState.state.pools],
+              courses: [...previousState.state.courses],
+              sessions: [...previousState.state.sessions],
+              actionHistory: state.actionHistory,
               currentActionIndex: state.currentActionIndex - 1,
             };
           }
@@ -193,7 +196,10 @@ export const useScheduleStore = create<ScheduleState>()(
           if (state.currentActionIndex < state.actionHistory.length - 1) {
             const nextState = state.actionHistory[state.currentActionIndex + 1];
             return {
-              ...nextState.state,
+              pools: [...nextState.state.pools],
+              courses: [...nextState.state.courses],
+              sessions: [...nextState.state.sessions],
+              actionHistory: state.actionHistory,
               currentActionIndex: state.currentActionIndex + 1,
             };
           }
@@ -392,12 +398,30 @@ export const useScheduleStore = create<ScheduleState>()(
         return id;
       },
 
-      updateSession: (id, updates) => {
-        set((state) => ({
-          sessions: state.sessions.map((session) =>
-            session.id === id ? { ...session, ...updates } : session
-          ),
-        }));
+      updateSession: (sessionId, updates) => {
+        console.log('Updating session:', {
+          sessionId,
+          updates,
+          beforeState: get().sessions.find(s => s.id === sessionId),
+        });
+        
+        set((state) => {
+          const newSessions = state.sessions.map((session) =>
+            session.id === sessionId
+              ? { ...session, ...updates }
+              : session
+          );
+          
+          const updatedSession = newSessions.find(s => s.id === sessionId);
+          console.log('Session updated:', {
+            sessionId,
+            afterState: updatedSession,
+          });
+          
+          const newState = { sessions: newSessions };
+          get().saveToHistory('updateSession');
+          return newState;
+        });
       },
 
       deleteSession: (id) => {

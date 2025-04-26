@@ -11,6 +11,7 @@ import { Course, DayOfWeek } from "@/lib/types";
 import { HOUR_HEIGHT } from "@/lib/constants";
 import { useRef, useState } from "react";
 
+
 const Index = () => {
   const { createSession, updatePoolPosition, getPool, updateSession } = useScheduleStore((state) => ({
     createSession: state.createSession,
@@ -49,6 +50,10 @@ const Index = () => {
     try {
       const { active, over, delta } = event;
       
+      console.log("=== Drag End Debug ===");
+      console.log("Active item:", active);
+      console.log("Over target:", over);
+
       if (!active || !over) {
         console.log("No active or over target");
         return;
@@ -56,6 +61,8 @@ const Index = () => {
 
       const { id: activeId, data: { current: activeData } } = active;
       const { id: overId, data: { current: overData } } = over;
+
+      console.log("Active type:", activeData?.type, "Over type:", overData?.type);
 
       // Handle pool canvas dragging
       if (activeData?.type === 'poolCanvas') {
@@ -84,6 +91,43 @@ const Index = () => {
           updatePoolPosition(poolId, newX, newY);
         }
       }
+
+      // --- Move an existing grid course block within / between pools ---
+      if (
+        (activeData?.type === 'grid-block' || activeData?.type === 'grid-course') &&  // dragged item is a block on the grid
+        overData?.type === 'pool-day-interval' &&             // dropped on a 15‑min interval cell
+        activeData.session                                    // session object exists
+      ) {
+        const { session } = activeData;
+        const { poolId: newPoolId, day: newDay, startMinute } = overData;
+
+        // Preserve the original length
+        const duration = session.end - session.start;
+
+        console.log('Updating session after drag:', {
+          sessionId: session.id,
+          fromPool: session.poolId,
+          toPool: newPoolId,
+          newDay,
+          newStart: startMinute,
+          newEnd: startMinute + duration,
+        });
+        console.log("Calling updateSession with:", {
+          id: session.id,
+          poolId: newPoolId,
+          day: newDay,
+          start: startMinute,
+          end: startMinute + duration,
+        });
+        updateSession(session.id, {
+          poolId: newPoolId,
+          day: newDay as DayOfWeek,
+          start: startMinute,
+          end: startMinute + duration,
+        });
+        console.log("Session update dispatched");
+      }
+      // --- End grid‑course move block ---
 
       // Handle course dragging
       if (activeData?.type === 'course' || activeData?.type === 'grid-course') {
@@ -141,6 +185,7 @@ const Index = () => {
           }
         }
       }
+      console.log("DragEnd handler complete");
     } catch (error) {
       console.error("Error in drag end:", error);
     } finally {
