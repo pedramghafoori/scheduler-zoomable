@@ -6,7 +6,7 @@ import { Settings } from "lucide-react"; // Icon for options
 import { format } from "date-fns"; // For formatting hour labels
 import { DraggableSyntheticListeners, DraggableAttributes } from '@dnd-kit/core'; // Import this
 import { Input } from "@/components/ui/input"; // Import Input
-import { useDroppable } from "@dnd-kit/core"; // Import useDroppable
+import { useDroppable, useDraggable } from "@dnd-kit/core";
 import CourseBlock from "@/components/CourseBlock"; // Add CourseBlock import
 
 // Import shadcn components
@@ -37,6 +37,45 @@ const DAY_COLUMN_START = HOUR_LABEL_WIDTH;
 const POOL_HEADER_HEIGHT_APPROX = 40; // Approximate height of the header div above the canvas
 const DEFAULT_START_HOUR = 8;
 const DEFAULT_END_HOUR = 22;
+
+// Helper component: one draggable grid course block
+interface GridCourseBlockProps {
+  session: any;           // TODO: replace with proper Session type
+  topPx: number;
+}
+
+const GridCourseBlock = ({ session, topPx }: GridCourseBlockProps) => {
+  const { setNodeRef, listeners, attributes, transform } = useDraggable({
+    id: `grid-course-${session.id}`,
+    data: { type: 'grid-course', session },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      style={{
+        position: 'absolute',
+        top: `${topPx}px`,
+        left: 0,
+        width: '100%',
+        height: `${(session.end - session.start) / 60 * 60}px`, // keep same calc
+        transform: transform
+          ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+          : undefined,
+        pointerEvents: 'auto',
+        zIndex: 10,
+      }}
+    >
+      <CourseBlock
+        session={session}
+        courseId={session.courseId}
+        isGrid={true}
+      />
+    </div>
+  );
+};
 
 const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes }: ZoomablePoolCanvasProps) => {
   // Store hooks
@@ -318,7 +357,7 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                       width: `${DAY_COLUMN_WIDTH}px`,
                       top: '0', // Aligns with the stage
                       height: `${stageInternalHeight}px`,
-                      pointerEvents: 'none', // Let drop zones handle pointer events
+                      pointerEvents: 'auto', // allow grabbing the course blocks again
                     }}
                   >
                     {/* Render CourseBlocks absolutely positioned within this day container */} 
@@ -327,38 +366,9 @@ const ZoomablePoolCanvas = ({ pool, dynamicWidth, dragListeners, dragAttributes 
                         console.log("Skipping session with invalid time:", session);
                         return null;
                       }
-
-                      // Log the position calculation
-                      console.log("Positioning course block:", {
-                        sessionId: session.id,
-                        start: session.start,
-                        startMinuteAbs,
-                        pixelOffset: minutesToPixels(session.start - startMinuteAbs),
-                        height: minutesToPixels(session.end - session.start)
-                      });
-
+                      const topPx = minutesToPixels(session.start - startMinuteAbs);
                       return (
-                        <div
-                          key={session.id}
-                          onPointerDown={(e) => {
-                            e.stopPropagation();
-                          }}
-                          style={{
-                            position: 'absolute',
-                            top: `${minutesToPixels(session.start - startMinuteAbs)}px`,
-                            height: `${minutesToPixels(session.end - session.start)}px`,
-                            left: '0px',
-                            width: '100%',
-                            pointerEvents: 'auto',
-                            zIndex: 10,
-                          }}
-                        >
-                          <CourseBlock
-                            session={session}
-                            courseId={session.courseId}
-                            isGrid={true}
-                          />
-                        </div>
+                        <GridCourseBlock key={session.id} session={session} topPx={topPx} />
                       );
                     })}
                   </div>
@@ -464,9 +474,9 @@ const DroppableInterval = ({ id, poolId, day, startMinute, top, height, width, c
       style={{
         left: `${columnX}px`,
         width: `${width}px`,
-        top: `${top}px`, 
+        top: `${top}px`,
         height: `${height}px`,
-        zIndex: 5,
+        zIndex: 10,
         transition: 'background-color 0.1s ease, border-color 0.1s ease',
         pointerEvents: 'auto',
       }}

@@ -52,6 +52,7 @@ const Index = () => {
       id: over?.id,
       rect: over?.rect
     });
+    console.log("Over data:", over?.data.current);
 
     if (!active || !over) {
       console.log("Drag cancelled or invalid active element");
@@ -78,7 +79,7 @@ const Index = () => {
       }
     }
     // --- Course Movement Logic --- 
-    else if ((activeType === 'course' || activeType === 'grid-course') && over) {
+    else if ((activeType === 'course' || activeType === 'grid-course' || activeType === 'bank-block') && over) {
       console.log("Processing course drop:", {
         activeType,
         course,
@@ -127,7 +128,7 @@ const Index = () => {
           return;
         }
         
-        if (activeType === 'course' && course) {  // Added check for course
+        if ((activeType === 'course' || activeType === 'bank-block') && course) {
           // New course from bank
           console.log("Creating new session:", {
             courseId: course.id,
